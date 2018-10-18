@@ -3,7 +3,7 @@
 # File  : views.py
 # Author: jixin
 # Date  : 18-10-17
-from flask import request, jsonify
+from flask import request
 from flask_login import login_user, logout_user, login_required
 
 from app import db

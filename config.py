@@ -37,6 +37,9 @@ class Config:
     LOG_FILE_MAX_BYTES = 5 * 1024 * 1024
     LOG_FILE_BACKUP_COUNT = 5
 
+    CELERY_BROKER_URL = 'redis://localhost:6379/0'
+    CELERY_RESULT_BACKEND = 'redis://localhost:6379/1'
+
     @staticmethod
     def init_app(app):
         pass

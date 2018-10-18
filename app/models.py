@@ -10,6 +10,7 @@ from itsdangerous import TimedJSONWebSignatureSerializer as Serializer
 from flask import request, current_app
 from flask_login import UserMixin
 from . import db, login_manager
+from .core.catalog import CataLog
 
 
 class Serializable(object):
@@ -57,6 +58,7 @@ class User(UserMixin, db.Model, Serializable):
     username = db.Column(db.String(64),
                          nullable=False, unique=True, index=True)
     password_hash = db.Column(db.String(128))
+    create_time = db.Column(db.DateTime, default=datetime.now)
 
     @property
     def password(self):
@@ -89,3 +91,26 @@ class User(UserMixin, db.Model, Serializable):
 @login_manager.user_loader
 def load_user(user_id):
     return User.query.get(int(user_id))
+
+
+class TaskInfo(db.Model, Serializable):
+    __tablename__ = 't_task_info'
+    id = db.Column(db.Integer, primary_key=True)
+    task_name = db.Column(db.String(64),
+                          nullable=False, unique=True, index=True)
+    sqoop_param = db.Column(db.String(64), nullable=False)
+    is_scheduled = db.Column(db.Boolean)
+    cron = db.Column(db.String(64))
+    create_time = db.Column(db.DateTime, default=datetime.now)
+
+
+class CataLogInfo(db.Model, Serializable):
+    __tablename__ = 't_catalog_info'
+    id = db.Column(db.Integer, primary_key=True)
+    catalog_name = db.Column(db.String(64),
+                             nullable=False, unique=True, index=True)
+    hosts = db.Column(db.String(64), nullable=False)
+    username = db.Column(db.String(64), nullable=False)
+    password = db.Column(db.String(64))
+    catalog_type = db.Column(db.Enum(CataLog))
+    create_time = db.Column(db.DateTime, default=datetime.now)
