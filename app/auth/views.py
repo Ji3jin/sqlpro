@@ -7,7 +7,7 @@ from flask import request
 from flask_login import login_user, logout_user, login_required
 
 from app import db
-from ..models import User
+from .models import User
 from . import auth
 from .forms import LoginForm, RegisterForm
 from ..core import baseapi
