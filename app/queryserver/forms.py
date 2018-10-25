@@ -6,16 +6,7 @@
 from flask_wtf import FlaskForm
 from wtforms import StringField, PasswordField, SelectField
 from wtforms.validators import DataRequired
-from .models import CataLog
 from .models import TemplateType
-
-
-class CataLogForm(FlaskForm):
-    catalog_name = StringField('CataLog', validators=[DataRequired()])
-    hosts = StringField('Host and port', validators=[DataRequired()])
-    username = StringField('UserName', validators=[DataRequired()])
-    password = PasswordField('Password')
-    catalog_type = SelectField('Type', choices=CataLog.choices(), coerce=CataLog.coerce)
 
 
 class DashBoardForm(FlaskForm):

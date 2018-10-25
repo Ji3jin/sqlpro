@@ -50,6 +50,9 @@ class DevConfig(Config):
     PRESERVE_CONTEXT_ON_EXCEPTION = False
     WTF_CSRF_ENABLED = False
     SQLALCHEMY_DATABASE_URI = "mysql+pymysql://root:123456@127.0.0.1:3306/sqlprotest"
+    PRESTO_URI = "presto://localhost:8989"
+    REDIS_HOST = "localhost"
+    REDIS_PORT = 6379
     SQLALCHEMY_TRACK_MODIFICATIONS = True
 
     @classmethod
@@ -65,6 +68,9 @@ class DevConfig(Config):
 
 class ProConfig(Config):
     SQLALCHEMY_DATABASE_URI = "mysql+pymysql://root:123456@127.0.0.1:3306/sqlpro"
+    PRESTO_URI = "presto://localhost:8989"
+    REDIS_HOST = "localhost"
+    REDIS_PORT = 6379
 
     @classmethod
     def init_app(cls, app):
