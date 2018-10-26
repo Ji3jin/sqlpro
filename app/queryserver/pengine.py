@@ -55,7 +55,8 @@ class PagedDataFrame(object):
 
     def _get_cached_page(self, index):
         r = redis_pool.get_instance()
-        self.data = r.lindex(self.uid, index=index - 1)
+        cached_data = r.lindex(self.uid, index=index - 1)
+        self.data = pd.read_json(cached_data, orient='split')
 
     def __del__(self):
         r = redis_pool.get_instance()

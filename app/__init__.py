@@ -51,9 +51,6 @@ app.register_blueprint(etl_blueprint)
 from .queryserver import query as query_blueprint
 
 app.register_blueprint(query_blueprint)
-from .wrangling import wrangling as wrangling_blueprint
-
-app.register_blueprint(wrangling_blueprint)
 
 with app.app_context():
     db.create_all()

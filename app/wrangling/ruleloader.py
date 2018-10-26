@@ -2,6 +2,7 @@
 import os
 from configparser import RawConfigParser
 import glob
+from config import basedir
 
 
 class RuleLoader:
@@ -15,3 +16,6 @@ class RuleLoader:
 
     def get_option(self, data_type, key):
         return self.cp.get(data_type, key)
+
+
+rule_loader = RuleLoader(os.path.join(basedir, 'conf'))

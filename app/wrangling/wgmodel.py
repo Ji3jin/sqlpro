@@ -18,9 +18,7 @@ class OperationType(Enum):
     DEFAULT = 'table'
 
 
-def get_op_type(op_index):
-    x_index = op_index[0]
-    y_index = op_index[1]
+def get_op_type(x_index, y_index):
     if x_index == 0 and y_index == 0:
         return OperationType.DEFAULT
     elif x_index == 0:
@@ -38,4 +36,4 @@ def get_axis(attr_name):
 
 CHECK_TYPE = ((DataType.NUM, 'int64'), (DataType.FLOAT, 'float64'))
 
-AXIS_ATTR = ("drop","dropna")
+AXIS_ATTR = ("drop", "dropna")
