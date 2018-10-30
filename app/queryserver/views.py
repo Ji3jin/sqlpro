@@ -114,7 +114,7 @@ def undo_operation():
         query_cache[wldf_key] = wl_df
         dbtypes = wl_df.dtypes
         return baseapi.success(data.to_dict(orient='split'), dbtypes=dbtypes)
-    return baseapi.failed("no cache for wangling dataframe", 500)
+    return baseapi.failed("no cache for wrangling dataframe", 500)
 
 
 @query.route('/query/dashboard', methods=['POST'])
