@@ -5,16 +5,39 @@
 # Date  : 18-10-17
 
 from app import db
-from .models import DashBoard, ChartInfo
+from .models import DashBoard, ChartInfo, Catalog
 from . import query
 from ..core import baseapi
-from flask import request
-from .forms import DashBoardForm, ChartForm
+from flask import request, render_template, redirect, url_for, jsonify
+from .forms import DashBoardForm, ChartForm, CatalogForm
 
 from .pengine import query_engine, query_cache, get_md5
 from .chartview import ChartView
 from ..wrangling.wloperation import WlOperation, get_recommend_operation
 from ..wrangling.wranglingdf import WrangLingDF
+from flask_login import login_required, current_user
+
+
+@query.route('/', methods=['GET'])
+@login_required
+def index():
+    catalogs = Catalog.query.filter((Catalog.public == True) | (Catalog.creator == current_user.username)).all()
+    catalog_tree = [{"text": item.name, "selectable": True, "lazyload": True,"nodes":[{
+        "text": "Child 1",
+        "nodes": [
+          {
+              "text": "Grandchild 1", "lazyload": True
+          },
+          {
+              "text": "Grandchild 2", "lazyload": True
+          }
+        ]
+      },
+      {
+          "text": "Child 2", "lazyload": True
+      }]} for item in catalogs]
+
+    return render_template('index.html', catalogs=catalog_tree)
 
 
 @query.route('/query/catalog', methods=['GET'])

@@ -10,9 +10,10 @@ from .models import User
 
 
 class LoginForm(FlaskForm):
-    username = StringField('Username', validators=[DataRequired()])
-    password = PasswordField('Password', validators=[DataRequired()])
+    username = StringField('Username', validators=[DataRequired(), Length(min=4, max=16)])
+    password = PasswordField('Password', validators=[DataRequired(), Length(min=6, max=16)])
     remember_me = BooleanField('Remember Me')
+    submit = SubmitField(label=u'Login')
 
     def validate_username(self, field):
         if not self.get_user():
@@ -29,6 +30,7 @@ class LoginForm(FlaskForm):
 
 
 class RegisterForm(FlaskForm):
-    username = StringField('Username', validators=[DataRequired(), Length(1, 128)])
-    password = PasswordField('Password', validators=[DataRequired()])
-    password_confirm = PasswordField('ConfirmPassword', validators=[DataRequired()])
+    username = StringField('Username', validators=[DataRequired(), Length(4, 16)])
+    password = PasswordField('Password', validators=[DataRequired(), Length(6, 16)])
+    password_confirm = PasswordField('ConfirmPassword', validators=[DataRequired(), Length(6, 16)])
+    submit = SubmitField(label=u'Submit')

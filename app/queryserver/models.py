@@ -54,3 +54,23 @@ class DashBoard(db.Model, Serializable):
                      nullable=False, unique=True, index=True)
     description = db.Column(db.String(256))
     create_time = db.Column(db.DateTime, default=datetime.now)
+
+
+class Catalog(db.Model, Serializable):
+    __tablename__ = 't_catalog'
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(64),
+                     nullable=False, unique=True, index=True)
+    connector = db.Column(db.String(64), nullable=False)
+    creator = db.Column(db.String(64), nullable=False)
+    properties = db.Column(db.Text, nullable=False)
+    public = db.Column(db.Boolean, default=False)
+    create_time = db.Column(db.DateTime, default=datetime.now)
+
+
+class SavedSql(db.Model, Serializable):
+    __tablename__ = 't_saved_sql'
+    id = db.Column(db.Integer, primary_key=True)
+    sql = db.Column(db.String(1000), nullable=False)
+    creator = db.Column(db.String(64), nullable=False)
+    create_time = db.Column(db.DateTime, default=datetime.now)

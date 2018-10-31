@@ -75,12 +75,24 @@ class QueryEngine(object):
         return df
 
     def show_schemas(self, catalog):
-        df = pd.read_sql("show schemas from {0}".format(catalog), self.engine)
-        return df
+        sql = "show schemas from {0}".format(catalog)
+        key = get_md5(sql)
+        if query_cache.__contains__(key):
+            return query_cache[key]
+        else:
+            df = pd.read_sql("show schemas from {0}".format(catalog), self.engine)
+            query_cache[key] = df
+            return df
 
     def show_tables(self, catalog, schema):
-        df = pd.read_sql("show tables from {0}.{1}".format(catalog, schema), self.engine)
-        return df
+        sql = "show tables from {0}.{1}".format(catalog, schema)
+        key = get_md5(sql)
+        if query_cache.__contains__(key):
+            return query_cache[key]
+        else:
+            df = pd.read_sql("show tables from {0}.{1}".format(catalog, schema), self.engine)
+            query_cache[key] = df
+            return df
 
     def query(self, sql, size):
         df = pd.read_sql(sql, self.engine, chunksize=size)

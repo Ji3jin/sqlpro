@@ -9,6 +9,7 @@ from flask_sqlalchemy import SQLAlchemy
 from flask_login import LoginManager
 from config import config
 from celery import Celery
+from flask_bootstrap import Bootstrap
 
 db = SQLAlchemy()
 login_manager = LoginManager()
@@ -21,6 +22,7 @@ app.config.from_object(config[config_name])
 config[config_name].init_app(app)
 db.init_app(app)
 login_manager.init_app(app)
+bootstrap = Bootstrap(app)
 
 
 def make_celery(app):
