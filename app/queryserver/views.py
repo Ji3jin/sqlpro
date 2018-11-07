@@ -348,10 +348,9 @@ def get_dashboard(id):
 def get_chart_list():
     chart_infos = ChartInfo.query.filter(ChartInfo.creator == current_user.username).all()
     chart_infos.sort(key=itemgetter('tag'))
-    result = defaultdict()
-    for tag, item in groupby(chart_infos, key=itemgetter('tag')):
-        result[tag].append(item.title)
-    return render_template('chartlist.html', chart_infos=result)
+    tree_nodes = [{"text": tag, "nodes": [{"text": item.title, "tags": [item.chart_type, ], "selectable": True, "lazyLoad": False}],
+      "selectable": False} for tag, item in groupby(chart_infos, key=itemgetter('tag'))]
+    return render_template('chartlist.html', tree_nodes=tree_nodes)
 
 
 @query.route('/query/chart/<int:id>', methods=['GET'])

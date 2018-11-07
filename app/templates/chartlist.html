@@ -95,6 +95,7 @@
 
 {% block scripts %}
     {{ super() }}
+    <script src="/static/js/bootstrap-treeview.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap-select/1.13.2/js/bootstrap-select.min.js"></script>
     <script>
         $(function () {
@@ -140,6 +141,13 @@
                         //redict to chart list or query page
                     }
                 });
+            });
+
+            var data = {{ tree_nodes|tojson }};
+            $('#tree').treeview({
+                data: data,
+                levels: 2,
+                showTags: true
             });
         })
 
