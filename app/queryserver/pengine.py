@@ -76,21 +76,31 @@ class QueryEngine(object):
 
     def show_schemas(self, catalog):
         sql = "show schemas from {0}".format(catalog)
-        key = get_md5(sql)
+        key = get_md5("{0}_treeview".format(sql))
         if query_cache.__contains__(key):
             return query_cache[key]
         else:
-            df = pd.read_sql("show schemas from {0}".format(catalog), self.engine)
+            df = pd.read_sql(sql, self.engine)
             query_cache[key] = df
             return df
 
     def show_tables(self, catalog, schema):
         sql = "show tables from {0}.{1}".format(catalog, schema)
-        key = get_md5(sql)
+        key = get_md5("{0}_treeview".format(sql))
         if query_cache.__contains__(key):
             return query_cache[key]
         else:
-            df = pd.read_sql("show tables from {0}.{1}".format(catalog, schema), self.engine)
+            df = pd.read_sql(sql, self.engine)
+            query_cache[key] = df
+            return df
+
+    def show_columns(self, catalog, schema, table):
+        sql = "show columns from {0}.{1}.{2}".format(catalog, schema,table)
+        key = get_md5("{0}_treeview".format(sql))
+        if query_cache.__contains__(key):
+            return query_cache[key]
+        else:
+            df = pd.read_sql(sql, self.engine)
             query_cache[key] = df
             return df
 

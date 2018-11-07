@@ -1,0 +1,182 @@
+{% extends "base.html" %}
+{% block title %}首页{% endblock %}
+{% block styles %}
+    {{ super() }}
+    <link href="/static/css/bootstrap-treeview.min.css" rel="stylesheet">
+{% endblock %}
+{% block page_content %}
+    <div class="well row">
+        <div class="col-md-3">
+            <div class="row">
+                <h2>CataLogs</h2>
+                <button type="button" class="btn btn-primary" data-toggle="modal" data-target="#addCatalog">Add
+                    CataLog
+                </button>
+                <button type="button" class="btn btn-primary">Del
+                    CataLog
+                </button>
+                <div id="tree"></div>
+            </div>
+            <div class="row">
+                <h2>Columns</h2>
+            </div>
+        </div>
+        <div class="col-md-9">
+            <h2>WareHouse</h2>
+            <a class="btn btn-link" href="/query/catalog/add">WareHouse</a>
+        </div>
+    </div>
+    <div class="modal fade" id="addCatalog" tabindex="-1" role="dialog" aria-labelledby="addCatalogLabel"
+         aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <button type="button" class="close" data-dismiss="modal" aria-hidden="true">&times;</button>
+                    <h4 class="modal-title" id="addCatalogLabel">Add CataLog</h4>
+                </div>
+                <div class="modal-body">
+                    <div class="input-group">
+                        <label for="catalog">Catalog Name:</label>
+                        <input type="text" class="form-control" id="catalog">
+                    </div>
+                    <div class="input-group">
+                        <label for="connecter">Connecter Name:</label>
+                        <input type="text" class="form-control" id="connecter">
+                    </div>
+                    <div class="input-group">
+                        <label for="connecter">Is Public:</label>
+                        <input type="checkbox" style='margin:10px' id="public">
+                    </div>
+                    <label for="connecter">Properties:</label>
+                    <dev id="propertiesGroup">
+
+                    </dev>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-default" data-dismiss="modal">关闭</button>
+                    <button type="button" class="btn btn-primary">提交更改</button>
+                </div>
+            </div>
+        </div>
+    </div>
+{% endblock %}
+
+{% block scripts %}
+    {{ super() }}
+    
+        <script src="/static/js/bootstrap-treeview.min.js"></script>
+
+    <script>
+        $(function () {
+
+            $.fn.initInputGroup = function (options) {
+                var c = $.extend({
+                    widget: 'input',
+                    add: "<span class=\"glyphicon glyphicon-plus\"></span>",
+                    del: "<span class=\"glyphicon glyphicon-minus\"></span>",
+                    field: '',
+                    data: []
+                }, options);
+
+                var _this = $(this);
+                addInputGroup(1);
+
+                function addInputGroup(order) {
+                    var inputGroup = $("<div class='input-group' style='margin: 5px 0'></div>");
+                    var inputGroupNameAddon = $("<span class='input-group-addon'>Name</span>");
+                    var inputGroupValueAddon = $("<span class='input-group-addon'>Value</span>");
+                    var nameWidget, valueWidget;
+                    nameWidget = $("<input class='form-control' type='text'/>");
+                    valueWidget = $("<input class='form-control' type='text'/>");
+                    if (c.data[order - 1]) {
+                        nameWidget.val(c.data[order - 1]["name"]);
+                        valueWidget.val(c.data[order - 1]["value"]);
+                    }
+                    var inputGroupBtnAddon = $("<span class='input-group-btn'></span>");
+                    if (c.field.length == 0) {
+                        nameWidget.prop('name', c.widget + 'Data[]');
+                        valueWidget.prop('name', c.widget + 'Data[]');
+                    } else {
+                        nameWidget.prop('name', c.field + '[]["name"]');
+                        valueWidget.prop('name', c.field + '[]["value"]');
+                    }
+                    var addBtn = $("<button class='btn btn-default' type='button'>" + c.add + "</button>");
+                    addBtn.appendTo(inputGroupBtnAddon).on('click', function () {
+                        if ($(this).html() == c.del) {
+                            $(this).parents('.input-group').remove();
+                        } else if ($(this).html() == c.add) {
+                            $(this).html(c.del);
+                            addInputGroup(order + 1);
+                        }
+                    });
+
+                    inputGroup.append(inputGroupNameAddon).append(nameWidget).append(inputGroupValueAddon).append(valueWidget).append(inputGroupBtnAddon);
+                    _this.append(inputGroup);
+                    if (order + 1 > c.data.length) {
+                        return;
+                    }
+                    addBtn.trigger('click');
+                }
+
+            };
+            $('#propertiesGroup').initInputGroup({
+                'widget': 'input',
+                'field': 'data',
+                'data': [{"name": "pro1", "value": "value1"}, {"name": "pro2", "value": "value2"}]
+            });
+            var data1 = {{ catalogs|tojson }};
+            var data = 
+  [
+    {
+      text: "系统设置",
+      href: "#node-1",
+      selectable: true,
+      id: '00',
+      selectable: false,
+      tags: ['available'],
+      nodes: 
+      [
+        { 
+          text: "目录设置",
+          id: '01',
+          nodeId: '01',
+          lazyLoad:true,//本节点为懒加载节点
+        }, 
+        { 
+          text: "爬虫设置",
+          id: '02',
+          lazyLoad:true,
+        }, 
+        { 
+          text: "项目权限",
+          id: '03'
+        }, 
+        { 
+          text: "账号管理",
+          id: '04',
+          selectable: false,
+        }
+      ]
+    }
+  ]
+            $('#tree').treeview({
+    data: data,         // data is not optional
+    levels: 2,
+    showTags:true,
+    loadingIcon:"fa fa-hourglass",//懒加载过程中显示的沙漏字符图标
+    lazyLoad:loaddata//loaddata为点击懒加载节点目录时，运行的函数名称，把后端的数据添加到这个节点下面
+  });
+        });
+function loaddata(node,func){//这个技巧真高，即能得到节点数据，又能把节点下级的数据通过函数发回去
+  alert(node.id);
+ 
+  var singleNode = {
+    text: "projcatename2",
+    id:"08",
+  };
+  func(singleNode);//把新的下级节点数据发回到后端，这样明显优雅很多
+  // $("#tree").treeview("addNode", [singleNode,node]);这一句和上面一句等同
+}
+
+    </script>
+{% endblock %}

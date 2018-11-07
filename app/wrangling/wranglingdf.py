@@ -20,7 +20,7 @@ class WrangLingDF():
 
     def get_wl_df_dtypes(self):
         for key, value in self._dtypes.items():
-            print("数据列{0},数据类型为{1},数据质量为{2}%".format(key, value[0], value[1] * 100))
+            print("数据列{0},数据类型为{1},数据质量为{2}%".format(key, value[0], value[1]))
 
     # 检测数据类型，并且统计数据质量（全局）
     def pre_deal_data(self, df):
@@ -42,7 +42,7 @@ class WrangLingDF():
                         break
             # dtype为object或者为数据质量百分百的类型。如果为Object则认定Nan为异常值，统计数据质量
             q = round(float(df[item].count()) / float(df[item].shape[0]), 2)
-            self._dtypes[item] = (dtype, q, DataType.STRING.value)
+            self._dtypes[item] = (dtype, q * 100, DataType.NUM.value)
         self.get_wl_df_dtypes()
 
     # 获取处理后的结果集

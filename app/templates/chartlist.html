@@ -1,0 +1,151 @@
+{% extends "base.html" %}
+{% block title %}Chart View{% endblock %}
+{% block styles %}
+    {{ super() }}
+    <link rel="stylesheet"
+          href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap-select/1.13.2/css/bootstrap-select.min.css">
+{% endblock %}
+{% block page_content %}
+    <div class="well row">
+        <div class="col-md-3">
+            <div class="row">
+                <h4>Chart List</h4>
+<div id="tree" style="margin-top: 20px"></div>
+            </div>
+        </div>
+        <div class="col-md-9">
+            <h4>ChartView</h4>
+
+            <div id="queryBtns" style="float:right;margin-bottom:20px;">
+                <button type="button" id="saveChartBtn" class="btn btn-primary">Save
+                </button>
+            </div>
+            <div id="chartCanvas" style="margin-top:65px;">
+            </div>
+        </div>
+    <div class="col-md-3">
+            <div class="row">
+                <h4>Setting</h4>
+                <form id="chartForm">
+                    <div class="form-group">
+                        <label for="chartTitle">Title</label>
+                        <input type="text" class="form-control" id="chartTitle" name="chartTitle" placeholder="Title">
+                    </div>
+                    <div class="form-group">
+                        <label for="chartSubTitle">Sub Title</label>
+                        <input type="text" class="form-control" id="chartSubTitle" name="chartSubTitle"
+                               placeholder="SubTitle">
+                    </div>
+                    <div class="form-group">
+                        <label for="chartType">ChartType</label>
+                        <select class="selectpicker" name="chartType" id="chartType">
+                            <option value="Bar">Bar(条形图)</option>
+                            <option value="Line">Line(折线图)</option>
+                            <option value="Pie">Pie(饼图)</option>
+                            <option value="Gauge">Gauge(仪表盘)</option>
+                            <option value="Geo">Geo(地理坐标系)</option>
+                            <option value="Map">Map(地图)</option>
+                            <option value="Funnel">Funnel(漏斗图)</option>
+                            <option value="Scatter">Scatter(散点图)</option>
+                            <option value="EffectScatter">EffectScatter(动态散点图)</option>
+                            <option value="WordCloud">WordCloud(词云图)</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="chartSubTitle">Xaxis Name</label>
+                        <input type="text" class="form-control" id="xaxisName" name="xaxisName"
+                               placeholder="Xaxis Name">
+                    </div>
+                    <div class="form-group">
+                        <label for="chartType">Xaxis/Attr</label>
+                        <select class="selectpicker" name="xaxis" id="xaxis" data-live-search="true">
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="chartSubTitle">Yaxis Name</label>
+                        <input type="text" class="form-control" id="yaxisName" name="yaxisName"
+                               placeholder="Yaxis Name">
+                    </div>
+                    <div class="form-group">
+                        <label for="chartType">Yaxis/Value</label>
+                        <select class="selectpicker" name="yaxis" id="yaxis" data-live-search="true" multiple>
+                        </select>
+                    </div>
+                    <div class="checkbox">
+                        <label>
+                            <input type="checkbox" id="isDataZoom" name="isDataZoom">isDataZoom
+                        </label>
+                    </div>
+                    <div class="checkbox">
+                        <label>
+                            <input type="checkbox" id="isVisualMap" name="isVisualMap">isVisualMap
+                        </label>
+                    </div>
+                    <div class="checkbox">
+                        <label>
+                            <input type="checkbox" id="isConvert" name="isConvert">isConvert
+                        </label>
+                    </div>
+                    <button type="button" class="btn btn-default" id="chartDraw">Draw</button>
+                </form>
+            </div>
+        </div>
+    </div>
+{% endblock %}
+
+{% block scripts %}
+    {{ super() }}
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap-select/1.13.2/js/bootstrap-select.min.js"></script>
+    <script>
+        $(function () {
+            var xy_axis = {{ xy_axis|tojson }};
+            var sql = "{{ sql|safe }}";
+            var is_wrangling = "{{ is_wrangling|safe }}";
+            var options = [];
+            $.each(xy_axis, function (index, obj) {
+                var option = "<option value='" + obj + "'>" + obj + "</option>";
+                options.push(option);
+            });
+            $('#xaxis').html(options);
+            $('#yaxis').html(options);
+            $('#xaxis').selectpicker('refresh');
+            $('#yaxis').selectpicker('refresh');
+            $('#xaxis').selectpicker('render');
+            $('#yaxis').selectpicker('render');
+
+            $("#chartDraw").click(function () {
+                $.ajax({
+                    type: "post",
+                    url: '/query/chart?sql=' + sql + '&is_wrangling=' + is_wrangling,
+                    data: $("#chartForm").serialize(),
+                    success: function (data) {
+                        $('#chartCanvas').empty();
+                        var canvas = "<div id='echartcanvas'  style='margin-top:20px;width:100%;background-color: white;height: 500px;'></div>";
+                        $('#chartCanvas').html(canvas);
+                        var chart = echarts.init($('#echartcanvas')[0], null, {renderer: 'canvas'});
+                        //data.custom_function
+                        var chart_options = $.parseJSON(data.options);
+                        chart.setOption(chart_options);
+                        //chart.on("{{ event_name }}", {{ handler_name }});
+                    }
+                });
+            });
+
+            $("#saveChartBtn").click(function () {
+                $.ajax({
+                    type: "post",
+                    url: '/query/chart/save?sql=' + sql + '&is_wrangling=' + is_wrangling,
+                    data: $("#chartForm").serialize(),
+                    success: function (data) {
+                        //redict to chart list or query page
+                    }
+                });
+            });
+        })
+
+
+    </script>
+    <script src="https://pyecharts.github.io/assets/js/echarts.min.js"></script>
+    <script src="https://pyecharts.github.io/assets/js/echarts-liquidfill.min.js"></script>
+    <script src="https://pyecharts.github.io/assets/js/echarts-wordcloud.min.js"></script>
+{% endblock %}

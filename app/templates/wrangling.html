@@ -1,0 +1,162 @@
+{% extends "base.html" %}
+{% block title %}WrangLing{% endblock %}
+{% block page_content %}
+    <div class="well row">
+        <div class="col-md-3">
+            <div class="row">
+                <h4>Recommend</h4>
+                <div id="recommend" style="margin-top: 20px;">
+                    <ul class="list-group" id="recommendList">
+
+                    </ul>
+                </div>
+            </div>
+            <div class="row"  style="margin-top: 10px">
+                <h4>DTypes</h4>
+                <div id="dtypes">
+                    <ul class="list-group list-group-flush" id="dtypelist">
+                        {% for column,info in dtypes.items() %}
+                            <li class="list-group-item">{{ column }}-{{ info[0] }}
+                                {% if info[1] < 60 %}
+                                    <span class="badge badge-pill badge-error"
+                                          style="background-color:red;">{{ info[1] }}%</span>
+                                {% elif info[1] < 80 %}
+                                    <span class="badge badge-pill badge-warning"
+                                          style="background-color:yellow;">{{ info[1] }}%</span>
+                                {% else %}
+                                    <span class="badge badge-pill" style="background-color:green;">{{ info[1] }}%</span>
+                                {% endif %}
+                            </li>
+                        {% endfor %}
+
+                    </ul>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-9">
+            <h4>Operating</h4>
+            <div id="chartBtns" style="float:left;">
+                <button type="button" id="chartBtn" class="btn btn-primary">ChartView
+                </button>
+                <button type="button" id="queryBtn" class="btn btn-primary">Query
+                </button>
+            </div>
+            <div id="queryBtns" style="float:right;">
+                <button type="button" id="resetBtn" class="btn btn-primary">Reset
+                </button>
+                <button type="button" id="undoBtn" class="btn btn-primary">Undo
+                </button>
+            </div>
+            <div id="queryTable" style="margin-top:60px;width:100%;background-color: white">
+                {{ data|safe }}
+            </div>
+            <div>
+                <ul class="pager">
+                    <li><a href="#" id="previous">&laquo;上一页</a></li>
+                    <li><a href="#" id="next">下一页&raquo;</a></li>
+                </ul>
+
+            </div>
+        </div>
+    </div>
+{% endblock %}
+
+{% block scripts %}
+    {{ super() }}
+    <script>
+        $(function () {
+            var sql = "{{ sql|safe }}";
+            var index = {{ index|safe }}
+
+                    $("#chartBtn").click(function () {
+                        window.location.href = '/query/chart?sql=' + sql;
+                    });
+            $("#queryBtn").click(function () {
+                window.location.href = '/';
+            });
+
+            $("#next").click(function () {
+                $.ajax({
+                    type: "post",
+                    url: "/query/extract",
+                    data: {'sql': sql, 'index': index + 1},
+                    success: function (data) {
+                        $('#queryTable').empty();
+                        $('#queryTable').append(data.data);
+                        index = data.index;
+                        sql = data.sql;
+                    }
+                });
+            });
+            $("#previous").click(function () {
+                $.ajax({
+                    type: "post",
+                    url: "/query/extract",
+                    data: {'sql': sql, 'index': index - 1},
+                    success: function (data) {
+                        $('#queryTable').empty();
+                        $('#queryTable').append(data.data);
+                        index = data.index;
+                        sql = data.sql;
+                    }
+                });
+            });
+
+            $(".dataframe td").click(function () {
+                var tdSeq = $(this).parent().find("td").index($(this)[0]);
+                var trSeq = $(this).parent().parent().find("tr").index($(this).parent()[0]);
+                var x_index = trSeq + 1;
+                var y_index = tdSeq + 1;
+                $.ajax({
+                    type: "post",
+                    url: "/query/operation",
+                    data: {'sql': sql, 'index': index, 'x_index': x_index, 'y_index': y_index},
+                    success: function (data) {
+                        $('#recommend').empty();
+                        $('#recommend').append(data.data);
+                        index = data.index;
+                        sql = data.sql;
+                    }
+                });
+            });
+            $("thead th").click(function () {
+                var tdSeq = $(this).parent().find("th").index($(this)[0]);
+                var trSeq = $(this).parent().parent().find("tr").index($(this).parent()[0]);
+                var x_index = trSeq;
+                var y_index = tdSeq;
+                $.ajax({
+                    type: "post",
+                    url: "/query/operation",
+                    data: {'sql': sql, 'index': index, 'x_index': x_index, 'y_index': y_index},
+                    success: function (data) {
+                        $('#recommendList').empty();
+                        console.log(data.data);
+                        $.each(data.data, function (index, value) {
+                            var li_info = "<li class='list-group-item'><h4 class='list-group-item-heading'>" + value['attr_name'] + "</h4><p class='list-group-item-text'>" + value['desc'] + "</p></li>";
+                            $('#recommendList').append(li_info);
+                        });
+                        index = data.index;
+                        sql = data.sql;
+                    }
+                });
+            });
+            $("tbody th").click(function () {
+                var tdSeq = $(this).parent().find("th").index($(this)[0]);
+                var trSeq = $(this).parent().parent().find("tr").index($(this).parent()[0]);
+                var x_index = trSeq + 1;
+                var y_index = tdSeq;
+                $.ajax({
+                    type: "post",
+                    url: "/query/operation",
+                    data: {'sql': sql, 'index': index, 'x_index': x_index, 'y_index': y_index},
+                    success: function (data) {
+                        $('#recommendList').empty();
+                        $('#recommend').append(data.data);
+                        index = data.index;
+                        sql = data.sql;
+                    }
+                });
+            });
+        })
+    </script>
+{% endblock %}

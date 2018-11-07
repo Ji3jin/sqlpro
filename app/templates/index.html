@@ -1,29 +1,61 @@
 {% extends "base.html" %}
-{% block title %}首页{% endblock %}
+{% block title %}Home{% endblock %}
 {% block styles %}
     {{ super() }}
-    <link href="https://cdn.bootcss.com/bootstrap-treeview/1.2.0/bootstrap-treeview.min.css" rel="stylesheet">
+    <link href="/static/css/bootstrap-treeview.min.css" rel="stylesheet">
 {% endblock %}
 {% block page_content %}
     <div class="well row">
         <div class="col-md-3">
             <div class="row">
-                <h2>CataLogs</h2>
-                <button type="button" class="btn btn-primary" data-toggle="modal" data-target="#addCatalog">Add
-                    CataLog
-                </button>
-                <button type="button" class="btn btn-primary">Del
-                    CataLog
-                </button>
-                <div id="tree"></div>
-            </div>
-            <div class="row">
-                <h2>Columns</h2>
+                <h4>CataLogs</h4>
+                <div id="catalogBtns">
+                    <button type="button" class="btn btn-primary" data-toggle="modal" data-target="#addCatalog">Add
+                        CataLog
+                    </button>
+                    <button type="button" id="removeCatalogBtn" class="btn btn-primary">Del
+                        CataLog
+                    </button>
+                </div>
+                <div id="tree" style="margin-top: 20px"></div>
             </div>
         </div>
         <div class="col-md-9">
-            <h2>WareHouse</h2>
-            <a class="btn btn-link" href="/query/catalog/add">WareHouse</a>
+            <h4>Query</h4>
+        <div id="chartBtns" style="float:left;margin-bottom:20px;">
+                <button type="button" id="chartBtn" class="btn btn-primary">ChartView
+                </button>
+                <button type="button" id="wranglingBtn" class="btn btn-primary">WrangLing
+                </button>
+            </div>
+            <div id="queryBtns" style="float:right;margin-bottom:20px;">
+                <div class="btn-group">
+                    <button type="button" class="btn btn-default dropdown-toggle" data-toggle="dropdown"
+                            aria-haspopup="true" aria-expanded="false">
+                        Saved SQL <span class="caret"></span>
+                    </button>
+                    <ul class="dropdown-menu" id="savedsql">
+                        {% for saved_sql in saved_sqls %}
+                            <li style="padding:2px 8px">{{ saved_sql.sql }}</li>
+                            <li role="separator" class="divider"></li>
+                        {% endfor %}
+                    </ul>
+                </div>
+                <button type="button" id="saveSqlBtn" class="btn btn-primary">Save
+                </button>
+                <button type="button" id="querySqlBtn" class="btn btn-primary" data-loading-text="Querying...">Query
+                </button>
+            </div>
+            <div id="editor" style="min-height:200px;width:100%;margin-top:10px" ></div>
+            <div id="queryTable" style="margin-top:20px;background-color: white">
+            </div>
+            <div>
+                <ul class="pager">
+                    <li><a href="#" id="previous">&laquo;上一页</a></li>
+                    <li><a href="#" id="next">下一页&raquo;</a></li>
+                </ul>
+
+            </div>
         </div>
     </div>
     <div class="modal fade" id="addCatalog" tabindex="-1" role="dialog" aria-labelledby="addCatalogLabel"
@@ -35,26 +67,28 @@
                     <h4 class="modal-title" id="addCatalogLabel">Add CataLog</h4>
                 </div>
                 <div class="modal-body">
-                    <div class="input-group">
-                        <label for="catalog">Catalog Name:</label>
-                        <input type="text" class="form-control" id="catalog">
-                    </div>
-                    <div class="input-group">
-                        <label for="connecter">Connecter Name:</label>
-                        <input type="text" class="form-control" id="connecter">
-                    </div>
-                    <div class="input-group">
-                        <label for="connecter">Is Public:</label>
-                        <input type="checkbox" style='margin:10px' id="public">
-                    </div>
-                    <label for="connecter">Properties:</label>
-                    <dev id="propertiesGroup">
+                    <form action="" id="addCatalogFrom">
+                        <div class="input-group">
+                            <label for="catalog">Catalog Name:</label>
+                            <input type="text" name="catalogName" class="form-control" id="catalog">
+                        </div>
+                        <div class="input-group">
+                            <label for="connecter">Connecter Name:</label>
+                            <input type="text" name="connectorName" class="form-control" id="connecter">
+                        </div>
+                        <div class="input-group">
+                            <label for="connecter">Is Public:</label>
+                            <input type="checkbox" name="isPublic" style='margin:10px' id="public">
+                        </div>
+                        <label for="connecter">Properties:</label>
+                        <dev id="propertiesGroup">
 
-                    </dev>
+                        </dev>
+                    </form>
                 </div>
                 <div class="modal-footer">
                     <button type="button" class="btn btn-default" data-dismiss="modal">关闭</button>
-                    <button type="button" class="btn btn-primary">提交更改</button>
+                    <button type="button" id="catalogAddBtn" class="btn btn-primary">添加</button>
                 </div>
             </div>
         </div>
@@ -63,7 +97,12 @@
 
 {% block scripts %}
     {{ super() }}
-    <script src="http://jonmiles.github.io/bootstrap-treeview/js/bootstrap-treeview.js"></script>
+
+    <script src="/static/js/bootstrap-treeview.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/ace/1.2.6/ace.js" type="text/javascript"
+            charset="utf-8"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/ace/1.2.6/ext-language_tools.js" type="text/javascript"
+            charset="utf-8"></script>
     <script>
         $(function () {
 
@@ -95,8 +134,8 @@
                         nameWidget.prop('name', c.widget + 'Data[]');
                         valueWidget.prop('name', c.widget + 'Data[]');
                     } else {
-                        nameWidget.prop('name', c.field + '[]["name"]');
-                        valueWidget.prop('name', c.field + '[]["value"]');
+                        nameWidget.prop('name', 'name[]');
+                        valueWidget.prop('name', 'value[]');
                     }
                     var addBtn = $("<button class='btn btn-default' type='button'>" + c.add + "</button>");
                     addBtn.appendTo(inputGroupBtnAddon).on('click', function () {
@@ -122,25 +161,167 @@
                 'field': 'data',
                 'data': [{"name": "pro1", "value": "value1"}, {"name": "pro2", "value": "value2"}]
             });
-            var data1 = {{ catalogs|tojson }};
-            var data = [ { "text": "Child 1", "lazyload": true }, { "text": "Child 2", "iri": "http://bbl.health/domUD1UN1h", "lazyload": true } ];
+            var data = {{ catalogs|tojson }};
+            var index = 1;
+            var sql = "";
             $('#tree').treeview({
                 data: data,
                 levels: 1,
-                showTags: false,
+                showTags: true,
                 loadingIcon: "fa fa-hourglass",
-                lazyload: function (node, display) {
-                    alert("111")
-                    display(data);
-                },
-                onNodeSelected:function (event, data) {
-                    alert("111")
-                    alert(data.text);
-                },
-
+                lazyLoad: loaddata
             });
+            $("#removeCatalogBtn").click(function () {
+                arr = $('#tree').treeview('getSelected');
+                if (arr.length == 0) {
+                    alert("请先选中catalog！");
+                    return;
+                }
+                var ids = "";
+                for (var i = 0; i < arr.length; i++) {
+                    if (i == 0) {
+                        ids = arr[i].id;
+                    } else {
+                        ids = ids + "," + arr[i].id;
+                    }
+                }
+                if (confirm("确定删除吗？一旦删除将无法恢复！")) {
+                    $.ajax({
+                        type: "delete",
+                        url: "/query/catalog",
+                        data: {ids: ids},
+                        success: function (data) {
+                            $('#tree').treeview('removeNode', [arr, {silent: true}]);
+                        }
+                    });
+                }
+            });
+
+            $("#catalogAddBtn").click(function () {
+                $.ajax({
+                    type: "post",
+                    url: "/query/catalog",
+                    data: $("#addCatalogFrom").serialize(),
+                    success: function (data) {
+                        $("#tree").treeview("addNode", [data]);
+                        $("#addCatalog").modal('hide');
+                    }
+                });
+            });
+
+            var editor = ace.edit("editor");
+            theme = "clouds";
+            editor.setTheme("ace/theme/" + theme);
+            editor.setFontSize(18);
+            editor.setReadOnly(false);
+            editor.setOption("wrap", "free")
+            ace.require("ace/ext/language_tools");
+            editor.setOptions({
+                enableBasicAutocompletion: true,
+                enableSnippets: true,
+                enableLiveAutocompletion: true
+            });
+            language = "sql";
+            editor.session.setMode("ace/mode/" + language);
+            var setCompleteData = function (data) {
+                var langTools = ace.require("ace/ext/language_tools");
+                langTools.addCompleter({
+                    getCompletions: function (editor, session, pos, prefix, callback) {
+                        if (prefix.length === 0) {
+                            return callback(null, []);
+                        } else {
+                            return callback(null, data);
+                        }
+                    }
+                });
+            };
+            updateCompleteData();
+            $("#saveSqlBtn").click(function () {
+                $.ajax({
+                    type: "post",
+                    url: "/query/history",
+                    data: {'sql': editor.getValue()},
+                    success: function (data) {
+                    }
+                });
+            });
+            $("#savedsql li").click(function () {
+                editor.setValue($(this).text(), 1);
+            });
+            $("#querySqlBtn").click(function () {
+                var btn = $(this);
+                btn.button('loading');
+                $.ajax({
+                    type: "post",
+                    url: "/query/sql",
+                    data: {'sql': editor.getValue(), 'index': 1},
+                    success: function (data) {
+                        $('#queryTable').empty();
+                        $('#queryTable').append(data.data);
+                        btn.button('reset');
+                        index = data.index;
+                        sql = data.sql;
+                    }
+                });
+            });
+            $("#next").click(function () {
+                $.ajax({
+                    type: "post",
+                    url: "/query/sql",
+                    data: {'sql': sql, 'index': index + 1},
+                    success: function (data) {
+                        $('#queryTable').empty();
+                        $('#queryTable').append(data.data);
+                        index = data.index;
+                    }
+                });
+            });
+            $("#previous").click(function () {
+                $.ajax({
+                    type: "post",
+                    url: "/query/sql",
+                    data: {'sql': sql, 'index': index - 1},
+                    success: function (data) {
+                        $('#queryTable').empty();
+                        $('#queryTable').append(data.data);
+                        index = data.index;
+                    }
+                });
+            });
+
+            $("#chartBtn").click(function () {
+                window.location.href='/query/chart?sql='+sql+'&is_wrangling=false';
+            });
+            $("#wranglingBtn").click(function () {
+                window.location.href='/query/wrangling?sql='+sql;
+            });
+
         });
-
-
+        function loaddata(node, func) {
+            $.getJSON("/query/treeview", {type: node.type, param: node.param}, function (json) {
+                func(json.data);
+                updateCompleteData();
+            });
+        }
+        function updateCompleteData() {
+            var nodes = $('#tree').treeview('getNodes');
+            var completeData = [];
+            $.each(nodes, function (index, obj) {
+                completeData.push({'meta': obj.type, 'caption': obj.text, 'value': obj.text, 'score': 1})
+            });
+            setCompleteData(completeData);
+        }
+        function setCompleteData(data) {
+            var langTools = ace.require("ace/ext/language_tools");
+            langTools.addCompleter({
+                getCompletions: function (editor, session, pos, prefix, callback) {
+                    if (prefix.length === 0) {
+                        return callback(null, []);
+                    } else {
+                        return callback(null, data);
+                    }
+                }
+            });
+        }
     </script>
 {% endblock %}
