@@ -24,6 +24,7 @@ class ChartInfo(db.Model, Serializable):
     is_data_zoom = db.Column(db.Boolean)
     is_visual_map = db.Column(db.Boolean)
     is_wrangling = db.Column(db.Boolean)
+    is_public = db.Column(db.Boolean)
     operation = db.Column(db.Text)
     creator = db.Column(db.String(64), nullable=False)
     tag = db.Column(db.String(64))
@@ -36,6 +37,16 @@ class DashBoard(db.Model, Serializable):
     name = db.Column(db.String(64),
                      nullable=False, unique=True, index=True)
     description = db.Column(db.String(256))
+    is_public = db.Column(db.Boolean)
+    creator = db.Column(db.String(64), nullable=False)
+    create_time = db.Column(db.DateTime, default=datetime.now)
+
+
+class DashBoardWithChart(db.Model, Serializable):
+    __tablename__ = 't_relation'
+    id = db.Column(db.Integer, primary_key=True)
+    dashboard_id = db.Column(db.Integer)
+    chart_id = db.Column(db.Integer)
     creator = db.Column(db.String(64), nullable=False)
     create_time = db.Column(db.DateTime, default=datetime.now)
 

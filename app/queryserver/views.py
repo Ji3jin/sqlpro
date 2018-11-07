@@ -5,7 +5,7 @@
 # Date  : 18-10-17
 
 from app import db
-from .models import DashBoard, ChartInfo, Catalog, SavedSql
+from .models import DashBoard, ChartInfo, Catalog, SavedSql,DashBoardWithChart
 from . import query
 from ..core import baseapi
 from flask import request, render_template, redirect, url_for, jsonify
@@ -196,6 +196,7 @@ def add_chart():
     yaxis = request.form.getlist('yaxis')
     data_zoom = request.form.get('isDataZoom') == 'on'
     visual_map = request.form.get('isVisualMap') == 'on'
+    is_public = request.form.get('isPublic') == 'on'
     operation = ""
     if is_wrangling:
         wldf_key = get_md5("{0}_wldf".format(sql))
@@ -208,7 +209,8 @@ def add_chart():
                            x_axis_name=x_axis_name, y_axis_name=y_axis_name,
                            select_sql=sql, xaxis=xaxis,
                            yaxis=','.join(yaxis), is_data_zoom=data_zoom,
-                           is_visual_map=visual_map, is_wrangling=is_wrangling, operation=operation,
+                           is_visual_map=visual_map, is_wrangling=is_wrangling, is_public=is_public
+                           operation=operation,
                            creator=current_user.username)
     db.session.add(chart_info)
     db.session.commit()
@@ -333,8 +335,12 @@ def delete_dashboard(id):
 
 @query.route('/query/dashboard', methods=['GET'])
 def get_dashboard_list():
-    dashboards = DashBoard.query.filter(DashBoard.creator == current_user.username).all()
-    return baseapi.success([item.serialize() for item in dashboards])
+    dashboards = DashBoard.query.filter((DashBoard.creator == current_user.username)|(DashBoard.is_public==True).all()
+    result = []
+    for item in dashboards:
+        chart_count = DashBoardWithChart.query.filter(DashBoardWithChart.dashboard_id==item.id).count()
+        result.append({"name":item.name,"chart_count":chart_count})
+    return render_template('dashboard.html', dashboards=result)
 
 
 @query.route('/query/dashboard/<int:id>', methods=['GET'])
@@ -348,17 +354,50 @@ def get_dashboard(id):
 def get_chart_list():
     chart_infos = ChartInfo.query.filter(ChartInfo.creator == current_user.username).all()
     chart_infos.sort(key=itemgetter('tag'))
-    tree_nodes = [{"text": tag, "nodes": [{"text": item.title, "tags": [item.chart_type, ], "selectable": True, "lazyLoad": False}],
+    tree_nodes = [{"text": tag, "nodes": [{"id":item.id,"text": item.title, "tags": [item.chart_type, ], "selectable": True, "lazyLoad": False}],
       "selectable": False} for tag, item in groupby(chart_infos, key=itemgetter('tag'))]
     return render_template('chartlist.html', tree_nodes=tree_nodes)
 
 
-@query.route('/query/chart/<int:id>', methods=['GET'])
-def get_chart(id):
+@query.route('/query/chart/<int:id>', methods=['GET','POST'])
+def edit_chart(id):
     chart = ChartInfo.query.get(id)
-    df = query_engine.query_all(chart.select_sql)
-    chart_data = ChartView.fill_data(chart, df)
-    return baseapi.success(chart_data)
+    if request.method == 'GET':
+        data = query_engine.query_all(sql)
+        chart_view = ChartView.create_instance("pyecharts", chart.chart_type, title=chart.title, subtitle=chart.sub_title)
+        for item in chart.yaxis.split(','):
+            chart_view.add(item, data[chart.xaxis].tolist(), data[item].tolist(), xaxis_name=chart.x_axis_name,
+                            yaxis_name=chart.y_axis_name, is_datazoom_show=chart.data_zoom, is_visualmap=chart.visual_map,
+                            xaxis_name_pos='end', yaxis_name_pos='end', yaxis_name_gap=40, is_convert=chart.is_convert)
+        javascript_snippet = TRANSLATOR.translate(chart_view.options)
+        return baseapi.success(data='true',
+                                custom_function=javascript_snippet.function_snippet,
+                                options=javascript_snippet.option_snippet,chart_info=chart )
+    elif request.method=='POST':
+        title = request.form.get('chartTitle')
+        sub_title = request.form.get('chartSubTitle')
+        chart_type = request.form.get('chartType')
+        x_axis_name = request.form.get('xaxisName')
+        y_axis_name = request.form.get('yaxisName')
+        xaxis = request.form.get('xaxis')
+        yaxis = request.form.getlist('yaxis')
+        data_zoom = request.form.get('isDataZoom') == 'on'
+        visual_map = request.form.get('isVisualMap') == 'on'
+        is_convert = request.form.get('isConvert') == 'on'
+        is_public = request.form.get('isPublic') == 'on'
+        chart.title=title
+        chart.sub_title=sub_title
+        chart.chart_type=chart_type
+        chart.x_axis_name=x_axis_name
+        chart.y_axis_name=y_axis_name
+        chart.xaxis=xaxis
+        chart.yaxis=yaxis
+        chart.data_zoom=data_zoom
+        chart.visual_map=visual_map
+        chart.is_convert=is_convert
+        chart.is_public=is_public
+        db.session.commit()
+        return baseapi.success("true")
 
 
 @query.route('/query/chart/<int:id>', methods=['DELETE'])

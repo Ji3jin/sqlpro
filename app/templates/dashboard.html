@@ -1,0 +1,94 @@
+{% extends "base.html" %}
+{% block title %}DashBoard{% endblock %}
+{% block page_content %}
+    <div class="well row">
+        <div class="col-md-3">
+            <div class="row">
+                <h4>DashBoards/h4>
+                    <ul class="list-group">
+                        {% for item in dashboards %}
+                        <li class="list-group-item">
+                          <span class="badge">item.chart_count</span>
+                          item.name
+                        </li>
+                        {% endfor %}
+                      </ul>
+            </div>
+        </div>
+        <div class="col-md-9">
+            <h4>ChartView</h4>
+
+            <div id="queryBtns" style="float:right;margin-bottom:20px;">
+                <button type="button" id="saveChartBtn" class="btn btn-primary">Save
+                </button>
+            </div>
+            <div id="chartCanvas" style="margin-top:65px;">
+            </div>
+        </div>
+    </div>
+{% endblock %}
+
+{% block scripts %}
+    {{ super() }}
+    <script src="/static/js/bootstrap-treeview.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap-select/1.13.2/js/bootstrap-select.min.js"></script>
+    <script>
+        $(function () {
+            var xy_axis = {{ xy_axis|tojson }};
+            var sql = "{{ sql|safe }}";
+            var is_wrangling = "{{ is_wrangling|safe }}";
+            var options = [];
+            $.each(xy_axis, function (index, obj) {
+                var option = "<option value='" + obj + "'>" + obj + "</option>";
+                options.push(option);
+            });
+            $('#xaxis').html(options);
+            $('#yaxis').html(options);
+            $('#xaxis').selectpicker('refresh');
+            $('#yaxis').selectpicker('refresh');
+            $('#xaxis').selectpicker('render');
+            $('#yaxis').selectpicker('render');
+
+            $("#chartDraw").click(function () {
+                $.ajax({
+                    type: "post",
+                    url: '/query/chart?sql=' + sql + '&is_wrangling=' + is_wrangling,
+                    data: $("#chartForm").serialize(),
+                    success: function (data) {
+                        $('#chartCanvas').empty();
+                        var canvas = "<div id='echartcanvas'  style='margin-top:20px;width:100%;background-color: white;height: 500px;'></div>";
+                        $('#chartCanvas').html(canvas);
+                        var chart = echarts.init($('#echartcanvas')[0], null, {renderer: 'canvas'});
+                        //data.custom_function
+                        var chart_options = $.parseJSON(data.options);
+                        chart.setOption(chart_options);
+                        //chart.on("{{ event_name }}", {{ handler_name }});
+                    }
+                });
+            });
+
+            $("#saveChartBtn").click(function () {
+                $.ajax({
+                    type: "post",
+                    url: '/query/chart/save?sql=' + sql + '&is_wrangling=' + is_wrangling,
+                    data: $("#chartForm").serialize(),
+                    success: function (data) {
+                        //redict to chart list or query page
+                    }
+                });
+            });
+
+            var data = {{ tree_nodes|tojson }};
+            $('#tree').treeview({
+                data: data,
+                levels: 2,
+                showTags: true
+            });
+        })
+
+
+    </script>
+    <script src="https://pyecharts.github.io/assets/js/echarts.min.js"></script>
+    <script src="https://pyecharts.github.io/assets/js/echarts-liquidfill.min.js"></script>
+    <script src="https://pyecharts.github.io/assets/js/echarts-wordcloud.min.js"></script>
+{% endblock %}
