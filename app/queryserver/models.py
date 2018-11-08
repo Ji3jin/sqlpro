@@ -14,7 +14,6 @@ class ChartInfo(db.Model, Serializable):
     id = db.Column(db.Integer, primary_key=True)
     title = db.Column(db.String(256),
                            nullable=False)
-    sub_title = db.Column(db.String(256))
     chart_type = db.Column(db.String(64), nullable=False)
     x_axis_name = db.Column(db.String(64), nullable=False)
     y_axis_name = db.Column(db.String(64), nullable=False)
@@ -24,6 +23,7 @@ class ChartInfo(db.Model, Serializable):
     is_data_zoom = db.Column(db.Boolean)
     is_visual_map = db.Column(db.Boolean)
     is_wrangling = db.Column(db.Boolean)
+    is_convert = db.Column(db.Boolean)
     is_public = db.Column(db.Boolean)
     operation = db.Column(db.Text)
     creator = db.Column(db.String(64), nullable=False)

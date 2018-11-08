@@ -4,8 +4,62 @@
     {{ super() }}
     <link rel="stylesheet"
           href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap-select/1.13.2/css/bootstrap-select.min.css">
+    <style>
+        .loading {
+            text-align: center;
+            width: 80px;
+            height: 40px;
+            margin: 0 auto;
+        }
+
+        .loading span {
+            margin: 0 auto;
+            display: inline-block;
+            width: 8px;
+            height: 100%;
+            border-radius: 4px;
+            background: lightgreen;
+            -webkit-animation: load 1s ease infinite;
+        }
+
+        @-webkit-keyframes load {
+            0%, 100% {
+                height: 40px;
+                background: lightgreen;
+            }
+            50% {
+                height: 70px;
+                margin: -15px 0;
+                background: lightblue;
+            }
+        }
+
+        .loading span:nth-child(2) {
+            -webkit-animation-delay: 0.2s;
+        }
+
+        .loading span:nth-child(3) {
+            -webkit-animation-delay: 0.4s;
+        }
+
+        .loading span:nth-child(4) {
+            -webkit-animation-delay: 0.6s;
+        }
+
+        .loading span:nth-child(5) {
+            -webkit-animation-delay: 0.8s;
+        }
+    </style>
 {% endblock %}
 {% block page_content %}
+    <div class="loading" id="loadingDiv">
+        <span></span>
+        <span></span>
+        <span></span>
+        <span></span>
+        <span></span>
+    </div>
+
     <div class="well row">
         <div class="col-md-3">
             <div class="row">
@@ -16,9 +70,9 @@
                         <input type="text" class="form-control" id="chartTitle" name="chartTitle" placeholder="Title">
                     </div>
                     <div class="form-group">
-                        <label for="chartSubTitle">Sub Title</label>
-                        <input type="text" class="form-control" id="chartSubTitle" name="chartSubTitle"
-                               placeholder="SubTitle">
+                        <label for="chartSubTitle">Tag</label>
+                        <input type="text" class="form-control" id="tag" name="tag"
+                               placeholder="Tag">
                     </div>
                     <div class="form-group">
                         <label for="chartType">ChartType</label>
@@ -92,6 +146,7 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap-select/1.13.2/js/bootstrap-select.min.js"></script>
     <script>
         $(function () {
+            $('#loadingDiv').hide();
             var xy_axis = {{ xy_axis|tojson }};
             var sql = "{{ sql|safe }}";
             var is_wrangling = "{{ is_wrangling|safe }}";
@@ -108,19 +163,21 @@
             $('#yaxis').selectpicker('render');
 
             $("#chartDraw").click(function () {
+                $("#loadingDiv").modal('show');
                 $.ajax({
                     type: "post",
                     url: '/query/chart?sql=' + sql + '&is_wrangling=' + is_wrangling,
                     data: $("#chartForm").serialize(),
                     success: function (data) {
                         $('#chartCanvas').empty();
-                        var canvas = "<div id='echartcanvas'  style='margin-top:20px;width:100%;background-color: white;height: 500px;'></div>";
+                        var canvas = "<div id='echartcanvas'  style='margin-top:20px;width:100%;background-color: white;height: 600px;'></div>";
                         $('#chartCanvas').html(canvas);
                         var chart = echarts.init($('#echartcanvas')[0], null, {renderer: 'canvas'});
                         //data.custom_function
                         var chart_options = $.parseJSON(data.options);
                         chart.setOption(chart_options);
                         //chart.on("{{ event_name }}", {{ handler_name }});
+                        $("#loadingDiv").modal('hide');
                     }
                 });
             });
@@ -131,7 +188,7 @@
                     url: '/query/chart/save?sql=' + sql + '&is_wrangling=' + is_wrangling,
                     data: $("#chartForm").serialize(),
                     success: function (data) {
-                        //redict to chart list or query page
+                        window.location.href = '/query/chart/list';
                     }
                 });
             });

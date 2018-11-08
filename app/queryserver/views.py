@@ -5,11 +5,10 @@
 # Date  : 18-10-17
 
 from app import db
-from .models import DashBoard, ChartInfo, Catalog, SavedSql,DashBoardWithChart
+from .models import DashBoard, ChartInfo, Catalog, SavedSql, DashBoardWithChart
 from . import query
 from ..core import baseapi
 from flask import request, render_template, redirect, url_for, jsonify
-from .forms import DashBoardForm, CatalogForm
 
 from .pengine import query_engine, query_cache, get_md5
 from .chartview import ChartView
@@ -159,10 +158,10 @@ def query_chart():
         xy_axis = data.columns.values.tolist()
         return render_template('chart.html', xy_axis=xy_axis, sql=sql, is_wrangling=is_wrangling)
     elif request.method == 'POST':
+        id = request.args.get('id')
         sql = request.args.get('sql')
         is_wrangling = request.args.get('is_wrangling')
         title = request.form.get('chartTitle')
-        sub_title = request.form.get('chartSubTitle')
         chart_type = request.form.get('chartType')
         x_axis_name = request.form.get('xaxisName')
         y_axis_name = request.form.get('yaxisName')
@@ -172,7 +171,13 @@ def query_chart():
         visual_map = request.form.get('isVisualMap') == 'on'
         is_convert = request.form.get('isConvert') == 'on'
         data = query_engine.query_all(sql)
-        chart_view = ChartView.create_instance("pyecharts", chart_type, title=title, subtitle=sub_title)
+        if is_wrangling == "true" and id > 0:
+            chart_info = ChartInfo.query.get(id)
+            wl_ops = json.loads(chart_info.operation)
+            wl_df = WrangLingDF()
+            wl_df.extract_record = wl_ops
+            data = wl_df.redo_dataframe(data)
+        chart_view = ChartView.create_instance("pyecharts", chart_type, title=title)
         for item in yaxis:
             chart_view.add(item, data[xaxis].tolist(), data[item].tolist(), xaxis_name=x_axis_name,
                            yaxis_name=y_axis_name, is_datazoom_show=data_zoom, is_visualmap=visual_map,
@@ -188,7 +193,9 @@ def add_chart():
     sql = request.args.get('sql')
     is_wrangling = request.args.get('is_wrangling') == 'true'
     title = request.form.get('chartTitle')
-    sub_title = request.form.get('chartSubTitle')
+    tag = request.form.get('tag')
+    if not tag:
+        tag = "Default"
     chart_type = request.form.get('chartType')
     x_axis_name = request.form.get('xaxisName')
     y_axis_name = request.form.get('yaxisName')
@@ -197,6 +204,7 @@ def add_chart():
     data_zoom = request.form.get('isDataZoom') == 'on'
     visual_map = request.form.get('isVisualMap') == 'on'
     is_public = request.form.get('isPublic') == 'on'
+    is_convert = request.form.get('isConvert') == 'on'
     operation = ""
     if is_wrangling:
         wldf_key = get_md5("{0}_wldf".format(sql))
@@ -204,13 +212,12 @@ def add_chart():
             wl_df = query_cache[wldf_key]
             operation = json.dumps(wl_df.extract_record)
 
-    chart_info = ChartInfo(title=title,
-                           sub_title=sub_title, chart_type=chart_type,
+    chart_info = ChartInfo(title=title, chart_type=chart_type,
                            x_axis_name=x_axis_name, y_axis_name=y_axis_name,
                            select_sql=sql, xaxis=xaxis,
                            yaxis=','.join(yaxis), is_data_zoom=data_zoom,
-                           is_visual_map=visual_map, is_wrangling=is_wrangling, is_public=is_public
-                           operation=operation,
+                           is_visual_map=visual_map, is_wrangling=is_wrangling, is_public=is_public,
+                           operation=operation, tag=tag, is_convert=is_convert,
                            creator=current_user.username)
     db.session.add(chart_info)
     db.session.commit()
@@ -314,33 +321,34 @@ def undo_operation():
 
 @query.route('/query/dashboard', methods=['POST'])
 def add_dashboard():
-    data = request.get_json()
-    databoard_form = DashBoardForm(data=data)
-    if databoard_form.validate():
-        dashboard_info = DashBoard(name=databoard_form.name.data, description=databoard_form.desc.data,
-                                   creator=current_user.username)
-        db.session.add(dashboard_info)
-        db.session.commit()
-        return baseapi.success("true")
-    return baseapi.failed(databoard_form.errors, 500)
+    name = request.form.get('dashboardName')
+    desc = request.form.get('dashboardDesc')
+    is_public = request.form.get('isPublic') == 'on'
+    dashboard_info = DashBoard(name=name, description=desc, is_public=is_public,
+                               creator=current_user.username)
+    db.session.add(dashboard_info)
+    db.session.commit()
+    return baseapi.success(name)
 
 
-@query.route('/query/dashboard/<int:id>', methods=['DELETE'])
-def delete_dashboard(id):
-    dashboard = DashBoard.query.get(id)
+@query.route('/query/dashboard', methods=['GET'])
+def delete_dashboard():
+    name = request.args.get('dashboard')
+    dashboard = DashBoard.query.filter_by(name=name).first()
     db.session.delete(dashboard)
     db.session.commit()
     return baseapi.success("true")
 
 
-@query.route('/query/dashboard', methods=['GET'])
+@query.route('/query/dashboard/list', methods=['GET'])
 def get_dashboard_list():
-    dashboards = DashBoard.query.filter((DashBoard.creator == current_user.username)|(DashBoard.is_public==True).all()
-    result = []
-    for item in dashboards:
-        chart_count = DashBoardWithChart.query.filter(DashBoardWithChart.dashboard_id==item.id).count()
-        result.append({"name":item.name,"chart_count":chart_count})
-    return render_template('dashboard.html', dashboards=result)
+    dashboards = DashBoard.query.filter(
+        (DashBoard.creator == current_user.username) | (DashBoard.is_public == True)).all()
+    chart_infos = ChartInfo.query.filter(ChartInfo.creator == current_user.username).order_by(ChartInfo.tag)
+    select_nodes = [{"tag": tag, "nodes": [
+        {"id": item.id, "text": item.title, "chart_type": item.chart_type} for item
+        in items]} for tag, items in groupby(chart_infos, key=lambda m: m.tag)]
+    return render_template('dashboard.html', dashboards=[item.name for item in dashboards], chart_infos=select_nodes)
 
 
 @query.route('/query/dashboard/<int:id>', methods=['GET'])
@@ -350,32 +358,33 @@ def get_dashboard(id):
     return baseapi.success({'databoard': dashboard.serialize(), 'charts': [item.serialize() for item in charts]})
 
 
-@query.route('/query/chart', methods=['GET'])
+@query.route('/query/chart/list', methods=['GET'])
 def get_chart_list():
-    chart_infos = ChartInfo.query.filter(ChartInfo.creator == current_user.username).all()
-    chart_infos.sort(key=itemgetter('tag'))
-    tree_nodes = [{"text": tag, "nodes": [{"id":item.id,"text": item.title, "tags": [item.chart_type, ], "selectable": True, "lazyLoad": False}],
-      "selectable": False} for tag, item in groupby(chart_infos, key=itemgetter('tag'))]
+    chart_infos = ChartInfo.query.filter(ChartInfo.creator == current_user.username).order_by(ChartInfo.tag)
+    tree_nodes = [{"text": tag, "nodes": [
+        {"id": item.id, "text": item.title, "tags": [item.chart_type, ], "selectable": True, "lazyLoad": False} for item
+        in items],
+                   "selectable": False} for tag, items in groupby(chart_infos, key=lambda m: m.tag)]
     return render_template('chartlist.html', tree_nodes=tree_nodes)
 
 
-@query.route('/query/chart/<int:id>', methods=['GET','POST'])
+@query.route('/query/chart/<int:id>', methods=['GET', 'POST'])
 def edit_chart(id):
-    chart = ChartInfo.query.get(id)
     if request.method == 'GET':
-        data = query_engine.query_all(sql)
-        chart_view = ChartView.create_instance("pyecharts", chart.chart_type, title=chart.title, subtitle=chart.sub_title)
+        chart = ChartInfo.query.get(id)
+        data = query_engine.query_all(chart.select_sql)
+        chart_view = ChartView.create_instance("pyecharts", chart.chart_type, title=chart.title)
         for item in chart.yaxis.split(','):
             chart_view.add(item, data[chart.xaxis].tolist(), data[item].tolist(), xaxis_name=chart.x_axis_name,
-                            yaxis_name=chart.y_axis_name, is_datazoom_show=chart.data_zoom, is_visualmap=chart.visual_map,
-                            xaxis_name_pos='end', yaxis_name_pos='end', yaxis_name_gap=40, is_convert=chart.is_convert)
+                           yaxis_name=chart.y_axis_name, is_datazoom_show=chart.is_data_zoom,
+                           is_visualmap=chart.is_visual_map,
+                           xaxis_name_pos='end', yaxis_name_pos='end', yaxis_name_gap=40, is_convert=chart.is_convert)
         javascript_snippet = TRANSLATOR.translate(chart_view.options)
-        return baseapi.success(data='true',
-                                custom_function=javascript_snippet.function_snippet,
-                                options=javascript_snippet.option_snippet,chart_info=chart )
-    elif request.method=='POST':
+        return baseapi.success(data="true", xy_axis=data.columns.values.tolist(),
+                               custom_function=javascript_snippet.function_snippet,
+                               options=javascript_snippet.option_snippet, chart_info=chart.serialize())
+    elif request.method == 'POST':
         title = request.form.get('chartTitle')
-        sub_title = request.form.get('chartSubTitle')
         chart_type = request.form.get('chartType')
         x_axis_name = request.form.get('xaxisName')
         y_axis_name = request.form.get('yaxisName')
@@ -385,24 +394,19 @@ def edit_chart(id):
         visual_map = request.form.get('isVisualMap') == 'on'
         is_convert = request.form.get('isConvert') == 'on'
         is_public = request.form.get('isPublic') == 'on'
-        chart.title=title
-        chart.sub_title=sub_title
-        chart.chart_type=chart_type
-        chart.x_axis_name=x_axis_name
-        chart.y_axis_name=y_axis_name
-        chart.xaxis=xaxis
-        chart.yaxis=yaxis
-        chart.data_zoom=data_zoom
-        chart.visual_map=visual_map
-        chart.is_convert=is_convert
-        chart.is_public=is_public
+        chart = ChartInfo.query.get(id).update(title=title, chart_type=chart_type,
+                                               x_axis_name=x_axis_name, y_axis_name=y_axis_name, xaxis=xaxis,
+                                               yaxis=yaxis, data_zoom=data_zoom, visual_map=visual_map,
+                                               is_convert=is_convert, is_public=is_public)
         db.session.commit()
         return baseapi.success("true")
 
 
-@query.route('/query/chart/<int:id>', methods=['DELETE'])
-def delete_chart(id):
-    chart = ChartInfo.query.get(id)
-    db.session.delete(chart)
-    db.session.commit()
+@query.route('/query/chart', methods=['DELETE'])
+def delete_chart():
+    selected = request.form['ids']
+    for id in selected.split(','):
+        chart = ChartInfo.query.get(int(id))
+        db.session.delete(chart)
+        db.session.commit()
     return baseapi.success("true")

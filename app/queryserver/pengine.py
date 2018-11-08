@@ -13,7 +13,7 @@ from ..core.redisobj import redis_pool
 from cachetools import TTLCache
 import hashlib
 
-query_cache = TTLCache(maxsize=128, ttl=300)
+query_cache = TTLCache(maxsize=256, ttl=300)
 
 
 def get_md5(sql):

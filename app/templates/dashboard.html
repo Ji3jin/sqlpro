@@ -1,88 +1,164 @@
 {% extends "base.html" %}
 {% block title %}DashBoard{% endblock %}
+{% block styles %}
+    {{ super() }}
+    <link rel="stylesheet"
+          href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap-select/1.13.2/css/bootstrap-select.min.css">
+    <style>
+        .bootstrap-select .dropdown-toggle {
+            width: 85%;
+        }
+    </style>
+{% endblock %}
 {% block page_content %}
+    <div class="alert" role="alert" id="msgAlert">
+
+    </div>
     <div class="well row">
-        <div class="col-md-3">
-            <div class="row">
-                <h4>DashBoards/h4>
-                    <ul class="list-group">
-                        {% for item in dashboards %}
-                        <li class="list-group-item">
-                          <span class="badge">item.chart_count</span>
-                          item.name
-                        </li>
-                        {% endfor %}
-                      </ul>
+        <div class="row">
+            <div class="col-md-6">
+                <label for="chartType" class="inline">Dashboard:</label>
+                <select class="selectpicker" name="dashboard" id="dashboard" data-live-search="true">
+                </select>
+                <button type="button" class="btn btn-primary" data-toggle="modal" data-target="#addDashboard">
+                    Add
+                </button>
+                <button type="button" id="dashboardDelBtn" class="btn btn-primary">Del</button>
+            </div>
+            <div class="col-md-6">
+                <label for="chartType">Select Charts:</label>
+                <select class="selectpicker" name="charts" id="charts" data-live-search="true" multiple>
+                </select>
+                <button type="button" id="chartsAddBtn" class="btn btn-primary">Add Charts</button>
             </div>
         </div>
-        <div class="col-md-9">
-            <h4>ChartView</h4>
-
-            <div id="queryBtns" style="float:right;margin-bottom:20px;">
-                <button type="button" id="saveChartBtn" class="btn btn-primary">Save
-                </button>
-            </div>
-            <div id="chartCanvas" style="margin-top:65px;">
+        <div class="row">
+            <div class="col-md-12">
+                <div id="dashboardCanvas" style="margin-top:65px;">
+                </div>
             </div>
         </div>
     </div>
+    <div class="modal fade" id="addDashboard" tabindex="-1" role="dialog" aria-labelledby="addCatalogLabel"
+         aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <button type="button" class="close" data-dismiss="modal" aria-hidden="true">&times;</button>
+                    <h4 class="modal-title" id="addDashboardLabel">Add Dashboard</h4>
+                </div>
+                <div class="modal-body">
+                    <form action="" id="addDashboardFrom">
+                        <div class="input-group" style="width:100%">
+                            <label for="catalog">Name:</label>
+                            <input type="text" name="dashboardName" class="form-control" id="catalog">
+                        </div>
+                        <div class="input-group" style="width:100%">
+                            <label for="connecter">Desc:</label>
+                            <input type="text" name="dashboardDesc" class="form-control" id="connecter">
+                        </div>
+                        <div class="input-group">
+                            <label for="connecter">Is Public:</label>
+                            <input type="checkbox" name="isPublic" style='margin:10px' id="public">
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-default" data-dismiss="modal">关闭</button>
+                    <button type="button" id="dashboardAddBtn" class="btn btn-primary">添加</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
 {% endblock %}
 
 {% block scripts %}
     {{ super() }}
-    <script src="/static/js/bootstrap-treeview.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap-select/1.13.2/js/bootstrap-select.min.js"></script>
     <script>
         $(function () {
-            var xy_axis = {{ xy_axis|tojson }};
-            var sql = "{{ sql|safe }}";
-            var is_wrangling = "{{ is_wrangling|safe }}";
-            var options = [];
-            $.each(xy_axis, function (index, obj) {
+            var dashboardlist = {{ dashboards|tojson }};
+            var chartinfolist = {{ chart_infos|tojson }};
+            var dashboard_options = [];
+            $.each(dashboardlist, function (index, obj) {
                 var option = "<option value='" + obj + "'>" + obj + "</option>";
-                options.push(option);
+                dashboard_options.push(option);
             });
-            $('#xaxis').html(options);
-            $('#yaxis').html(options);
-            $('#xaxis').selectpicker('refresh');
-            $('#yaxis').selectpicker('refresh');
-            $('#xaxis').selectpicker('render');
-            $('#yaxis').selectpicker('render');
+            $('#dashboard').html(dashboard_options);
+            $('#dashboard').selectpicker('refresh');
+            $('#dashboard').selectpicker('render');
+            var chartinfo_options = [];
+            $.each(chartinfolist, function (index, obj) {
+                var optiongroup = "<optgroup label='" + obj.tag + "'>";
+                $.each(obj.nodes, function (index, item) {
+                    optiongroup += "<option value='" + item.id + "'>" + item.text + "</option>";
+                });
+                chartinfo_options.push(optiongroup);
+            });
+            $('#charts').html(chartinfo_options);
+            $('#charts').selectpicker('refresh');
+            $('#charts').selectpicker('render');
 
-            $("#chartDraw").click(function () {
+            $("#dashboardAddBtn").click(function () {
                 $.ajax({
                     type: "post",
-                    url: '/query/chart?sql=' + sql + '&is_wrangling=' + is_wrangling,
-                    data: $("#chartForm").serialize(),
+                    url: "/query/dashboard",
+                    data: $("#addDashboardFrom").serialize(),
                     success: function (data) {
-                        $('#chartCanvas').empty();
-                        var canvas = "<div id='echartcanvas'  style='margin-top:20px;width:100%;background-color: white;height: 500px;'></div>";
-                        $('#chartCanvas').html(canvas);
-                        var chart = echarts.init($('#echartcanvas')[0], null, {renderer: 'canvas'});
-                        //data.custom_function
-                        var chart_options = $.parseJSON(data.options);
-                        chart.setOption(chart_options);
-                        //chart.on("{{ event_name }}", {{ handler_name }});
+                        $("#addDashboard").modal('hide');
+                        var dashboard = "<option value='" + data.data + "'>" + data.data + "</option>";
+                        $('#dashboard').append(dashboard);
+                        $('#dashboard').selectpicker('refresh');
+                        $('#dashboard').selectpicker('render');
+                        $("#msgAlert").removeClass('alert-danger').addClass('alert-success');
+                        var innerHTML = "<strong>Add DashBoard Success!</strong>";
+                        $("#msgAlert")[0].innerHTML = innerHTML;
+                        $("#msgAlert").fadeTo(2000, 500).slideUp(500, function () {
+                            $("#msgAlert").hide();
+                        });
+                    },
+                    error: function (jqXHR, textStatus, errorThrown) {
+                        $("#msgAlert").removeClass('alert-success').addClass('alert-danger');
+                        var innerHTML = "<strong>Add DashBoard  Failed!</strong>";
+                        $("#msgAlert")[0].innerHTML = innerHTML;
+                        $("#msgAlert").fadeTo(2000, 500).slideUp(500, function () {
+                            $("#msgAlert").hide();
+                        });
                     }
                 });
             });
-
-            $("#saveChartBtn").click(function () {
+            $("#dashboardDelBtn").click(function () {
+                var name = $('#dashboard option:selected').val();
                 $.ajax({
-                    type: "post",
-                    url: '/query/chart/save?sql=' + sql + '&is_wrangling=' + is_wrangling,
-                    data: $("#chartForm").serialize(),
+                    type: "get",
+                    url: "/query/dashboard?dashboard=" + name,
                     success: function (data) {
-                        //redict to chart list or query page
+                        $('#dashboard option:selected').remove();
+                        $('#dashboard').selectpicker('refresh');
+                        $('#dashboard').selectpicker('render');
+                        $("#msgAlert").removeClass('alert-danger').addClass('alert-success');
+                        var innerHTML = "<strong>Del DashBoard Success!</strong>";
+                        $("#msgAlert")[0].innerHTML = innerHTML;
+                        $("#msgAlert").fadeTo(2000, 500).slideUp(500, function () {
+                            $("#msgAlert").hide();
+                        });
+                    },
+                    error: function (jqXHR, textStatus, errorThrown) {
+                        $("#msgAlert").removeClass('alert-success').addClass('alert-danger');
+                        var innerHTML = "<strong>Del Catalog  Failed!</strong>";
+                        $("#msgAlert")[0].innerHTML = innerHTML;
+                        $("#msgAlert").fadeTo(2000, 500).slideUp(500, function () {
+                            $("#msgAlert").hide();
+                        });
                     }
                 });
             });
-
-            var data = {{ tree_nodes|tojson }};
-            $('#tree').treeview({
-                data: data,
-                levels: 2,
-                showTags: true
+            $("#chartsAddBtn").click(function () {
+                var selected_charts = $('#charts').val();
+                $.each(selected_charts,function (index, obj) {
+                    $("#dashboardCanvas").append('<div style="width:200px;height:200px;border:1px solid #000;float:left">这是一个基本的面板</div>');
+                })
             });
         })
 

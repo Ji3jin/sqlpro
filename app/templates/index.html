@@ -2,12 +2,69 @@
 {% block title %}Home{% endblock %}
 {% block styles %}
     {{ super() }}
-    <link href="/static/css/bootstrap-treeview.min.css" rel="stylesheet">
+    <link href="/static/css/bootstrap-treeview.min.css" rel="stylesheet"/>
+    <style>
+        .loading {
+            text-align: center;
+            width: 80px;
+            height: 40px;
+            margin: 0 auto;
+        }
+
+
+        .loading span {
+            margin: 0 auto;
+            display: inline-block;
+            width: 8px;
+            height: 100%;
+            border-radius: 4px;
+            background: lightgreen;
+            -webkit-animation: load 1s ease infinite;
+        }
+
+        @-webkit-keyframes load {
+            0%, 100% {
+                height: 40px;
+                background: lightgreen;
+            }
+            50% {
+                height: 70px;
+                margin: -15px 0;
+                background: lightblue;
+            }
+        }
+
+        .loading span:nth-child(2) {
+            -webkit-animation-delay: 0.2s;
+        }
+
+        .loading span:nth-child(3) {
+            -webkit-animation-delay: 0.4s;
+        }
+
+        .loading span:nth-child(4) {
+            -webkit-animation-delay: 0.6s;
+        }
+
+        .loading span:nth-child(5) {
+            -webkit-animation-delay: 0.8s;
+        }
+    </style>
 {% endblock %}
 {% block page_content %}
+    <div class="loading" id="loadingDiv">
+        <span></span>
+        <span></span>
+        <span></span>
+        <span></span>
+        <span></span>
+    </div>
+    <div class="alert" role="alert" id="msgAlert">
+
+    </div>
     <div class="well row">
         <div class="col-md-3">
-            <div class="row">
+            <div class="row" style="max-height: 800px">
                 <h4>CataLogs</h4>
                 <div id="catalogBtns">
                     <button type="button" class="btn btn-primary" data-toggle="modal" data-target="#addCatalog">Add
@@ -22,7 +79,7 @@
         </div>
         <div class="col-md-9">
             <h4>Query</h4>
-        <div id="chartBtns" style="float:left;margin-bottom:20px;">
+            <div id="chartBtns" style="float:left;margin-bottom:20px;">
                 <button type="button" id="chartBtn" class="btn btn-primary">ChartView
                 </button>
                 <button type="button" id="wranglingBtn" class="btn btn-primary">WrangLing
@@ -46,7 +103,7 @@
                 <button type="button" id="querySqlBtn" class="btn btn-primary" data-loading-text="Querying...">Query
                 </button>
             </div>
-            <div id="editor" style="min-height:200px;width:100%;margin-top:10px" ></div>
+            <div id="editor" style="min-height:200px;width:100%;margin-top:10px"></div>
             <div id="queryTable" style="margin-top:20px;background-color: white">
             </div>
             <div>
@@ -68,11 +125,11 @@
                 </div>
                 <div class="modal-body">
                     <form action="" id="addCatalogFrom">
-                        <div class="input-group">
+                        <div class="input-group" style="width:100%">
                             <label for="catalog">Catalog Name:</label>
                             <input type="text" name="catalogName" class="form-control" id="catalog">
                         </div>
-                        <div class="input-group">
+                        <div class="input-group" style="width:100%">
                             <label for="connecter">Connecter Name:</label>
                             <input type="text" name="connectorName" class="form-control" id="connecter">
                         </div>
@@ -105,7 +162,9 @@
             charset="utf-8"></script>
     <script>
         $(function () {
-
+            $('#loadingDiv').hide();
+            $("#next").hide();
+            $("#previous").hide();
             $.fn.initInputGroup = function (options) {
                 var c = $.extend({
                     widget: 'input',
@@ -159,7 +218,7 @@
             $('#propertiesGroup').initInputGroup({
                 'widget': 'input',
                 'field': 'data',
-                'data': [{"name": "pro1", "value": "value1"}, {"name": "pro2", "value": "value2"}]
+                'data': []
             });
             var data = {{ catalogs|tojson }};
             var index = 1;
@@ -205,6 +264,20 @@
                     success: function (data) {
                         $("#tree").treeview("addNode", [data]);
                         $("#addCatalog").modal('hide');
+                        $("#msgAlert").removeClass('alert-danger').addClass('alert-success');
+                        var innerHTML = "<strong>Add Catalog Success!</strong>";
+                        $("#msgAlert")[0].innerHTML = innerHTML;
+                        $("#msgAlert").fadeTo(2000, 500).slideUp(500, function () {
+                            $("#msgAlert").hide();
+                        });
+                    },
+                    error: function (jqXHR, textStatus, errorThrown) {
+                        $("#msgAlert").removeClass('alert-success').addClass('alert-danger');
+                        var innerHTML = "<strong>Add Catalog  Failed!</strong>";
+                        $("#msgAlert")[0].innerHTML = innerHTML;
+                        $("#msgAlert").fadeTo(2000, 500).slideUp(500, function () {
+                            $("#msgAlert").hide();
+                        });
                     }
                 });
             });
@@ -247,10 +320,13 @@
             });
             $("#savedsql li").click(function () {
                 editor.setValue($(this).text(), 1);
+                editor[0].focus();
             });
+
             $("#querySqlBtn").click(function () {
                 var btn = $(this);
                 btn.button('loading');
+                $('#loadingDiv').modal('show');
                 $.ajax({
                     type: "post",
                     url: "/query/sql",
@@ -261,6 +337,9 @@
                         btn.button('reset');
                         index = data.index;
                         sql = data.sql;
+                        $("#next").show();
+                        $("#previous").show();
+                        $('#loadingDiv').modal('hide');
                     }
                 });
             });
@@ -290,17 +369,19 @@
             });
 
             $("#chartBtn").click(function () {
-                window.location.href='/query/chart?sql='+sql+'&is_wrangling=false';
+                window.location.href = '/query/chart?sql=' + sql + '&is_wrangling=false';
             });
             $("#wranglingBtn").click(function () {
-                window.location.href='/query/wrangling?sql='+sql;
+                window.location.href = '/query/wrangling?sql=' + sql;
             });
 
         });
         function loaddata(node, func) {
+            $('#loadingDiv').modal('show')
             $.getJSON("/query/treeview", {type: node.type, param: node.param}, function (json) {
                 func(json.data);
                 updateCompleteData();
+                $('#loadingDiv').modal('hide')
             });
         }
         function updateCompleteData() {

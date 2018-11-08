@@ -4,26 +4,82 @@
     {{ super() }}
     <link rel="stylesheet"
           href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap-select/1.13.2/css/bootstrap-select.min.css">
+    <link href="/static/css/bootstrap-treeview.min.css" rel="stylesheet">
+    <style>
+        .bootstrap-select .dropdown-toggle {
+            width: 85%;
+        }
+
+        .loading {
+            text-align: center;
+            width: 80px;
+            height: 40px;
+            margin: 0 auto;
+        }
+
+        .loading span {
+            margin: 0 auto;
+            display: inline-block;
+            width: 8px;
+            height: 100%;
+            border-radius: 4px;
+            background: lightgreen;
+            -webkit-animation: load 1s ease infinite;
+        }
+
+        @-webkit-keyframes load {
+            0%, 100% {
+                height: 40px;
+                background: lightgreen;
+            }
+            50% {
+                height: 70px;
+                margin: -15px 0;
+                background: lightblue;
+            }
+        }
+
+        .loading span:nth-child(2) {
+            -webkit-animation-delay: 0.2s;
+        }
+
+        .loading span:nth-child(3) {
+            -webkit-animation-delay: 0.4s;
+        }
+
+        .loading span:nth-child(4) {
+            -webkit-animation-delay: 0.6s;
+        }
+
+        .loading span:nth-child(5) {
+            -webkit-animation-delay: 0.8s;
+        }
+    </style>
 {% endblock %}
 {% block page_content %}
+    <div class="loading" id="loadingDiv">
+        <span></span>
+        <span></span>
+        <span></span>
+        <span></span>
+        <span></span>
+    </div>
+    <div class="alert" role="alert" id="msgAlert">
+
+    </div>
     <div class="well row">
         <div class="col-md-3">
             <div class="row">
                 <h4>Chart List</h4>
-<div id="tree" style="margin-top: 20px"></div>
+                <div id="tree" style="margin-top: 20px"></div>
             </div>
         </div>
         <div class="col-md-7">
             <h4>ChartView</h4>
-
-            <div id="queryBtns" style="float:right;margin-bottom:20px;">
-                <button type="button" id="saveChartBtn" class="btn btn-primary">Save
-                </button>
-            </div>
             <div id="chartCanvas" style="margin-top:65px;">
             </div>
         </div>
-    <div class="col-md-2">
+        <div class="col-md-2">
             <div class="row">
                 <h4>Setting</h4>
                 <form id="chartForm">
@@ -31,12 +87,7 @@
                         <label for="chartTitle">Title</label>
                         <input type="text" class="form-control" id="chartTitle" name="chartTitle" placeholder="Title">
                     </div>
-                    <div class="form-group">
-                        <label for="chartSubTitle">Sub Title</label>
-                        <input type="text" class="form-control" id="chartSubTitle" name="chartSubTitle"
-                               placeholder="SubTitle">
-                    </div>
-                    <div class="form-group">
+                    <div class="form-group" style="width:100px;">
                         <label for="chartType">ChartType</label>
                         <select class="selectpicker" name="chartType" id="chartType">
                             <option value="Bar">Bar(条形图)</option>
@@ -86,7 +137,11 @@
                             <input type="checkbox" id="isConvert" name="isConvert">isConvert
                         </label>
                     </div>
-                    <button type="button" class="btn btn-default" id="chartDraw">Draw</button>
+                    <div class="btn-group" role="group">
+                        <button type="button" class="btn btn-default" id="chartDraw">Draw</button>
+                        <button type="button" class="btn btn-default" id="chartDel">Del</button>
+                        <button type="button" class="btn btn-default" id="chartSave">Save</button>
+                    </div>
                 </form>
             </div>
         </div>
@@ -99,55 +154,129 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap-select/1.13.2/js/bootstrap-select.min.js"></script>
     <script>
         $(function () {
-            var xy_axis = {{ xy_axis|tojson }};
-            var sql = "{{ sql|safe }}";
-            var is_wrangling = "{{ is_wrangling|safe }}";
-            var options = [];
-            $.each(xy_axis, function (index, obj) {
-                var option = "<option value='" + obj + "'>" + obj + "</option>";
-                options.push(option);
-            });
-            $('#xaxis').html(options);
-            $('#yaxis').html(options);
-            $('#xaxis').selectpicker('refresh');
-            $('#yaxis').selectpicker('refresh');
-            $('#xaxis').selectpicker('render');
-            $('#yaxis').selectpicker('render');
-
+            $("msgAlert").hide();
+            $('#loadingDiv').hide();
+            var sql = '';
+            var is_wrangling = 'false';
+            var id = 0;
             $("#chartDraw").click(function () {
+                $("#loadingDiv").modal('show');
                 $.ajax({
                     type: "post",
-                    url: '/query/chart?sql=' + sql + '&is_wrangling=' + is_wrangling,
+                    url: '/query/chart?sql=' + sql + '&is_wrangling=' + is_wrangling + '&id=' + id,
                     data: $("#chartForm").serialize(),
                     success: function (data) {
                         $('#chartCanvas').empty();
-                        var canvas = "<div id='echartcanvas'  style='margin-top:20px;width:100%;background-color: white;height: 500px;'></div>";
+                        var canvas = "<div id='echartcanvas'  style='margin-top:20px;width:100%;background-color: white;min-height: 600px;'></div>";
                         $('#chartCanvas').html(canvas);
                         var chart = echarts.init($('#echartcanvas')[0], null, {renderer: 'canvas'});
                         //data.custom_function
                         var chart_options = $.parseJSON(data.options);
                         chart.setOption(chart_options);
                         //chart.on("{{ event_name }}", {{ handler_name }});
+                        $("#loadingDiv").modal('hide');
                     }
                 });
             });
 
-            $("#saveChartBtn").click(function () {
+            $("#chartSave").click(function () {
                 $.ajax({
                     type: "post",
-                    url: '/query/chart/save?sql=' + sql + '&is_wrangling=' + is_wrangling,
+                    url: '/query/chart/' + id,
                     data: $("#chartForm").serialize(),
                     success: function (data) {
-                        //redict to chart list or query page
+                        $("#msgAlert").removeClass('alert-danger').addClass('alert-success');
+                        var innerHTML = "<strong>Save Success!</strong>";
+                        $("#msgAlert")[0].innerHTML = innerHTML;
+                        $("#msgAlert").fadeTo(2000, 500).slideUp(500, function () {
+                            $("#msgAlert").hide();
+                        });
+                    },
+                    error: function (jqXHR, textStatus, errorThrown) {
+                        $("#msgAlert").removeClass('alert-success').addClass('alert-danger');
+                        var innerHTML = "<strong>Save Failed!</strong>";
+                        $("#msgAlert")[0].innerHTML = innerHTML;
+                        $("#msgAlert").fadeTo(2000, 500).slideUp(500, function () {
+                            $("#msgAlert").hide();
+                        });
                     }
                 });
+            });
+
+            $("#chartDel").click(function () {
+                arr = $('#tree').treeview('getSelected');
+                if (arr.length == 0) {
+                    alert("请先选中chart view！");
+                    return;
+                }
+                var ids = "";
+                for (var i = 0; i < arr.length; i++) {
+                    if (i == 0) {
+                        ids = arr[i].id;
+                    } else {
+                        ids = ids + "," + arr[i].id;
+                    }
+                }
+                if (confirm("确定删除吗？一旦删除将无法恢复！")) {
+                    $.ajax({
+                        type: "delete",
+                        url: "/query/chart",
+                        data: {ids: ids},
+                        success: function (data) {
+                            $('#tree').treeview('removeNode', [arr, {silent: true}]);
+                        }
+                    });
+                }
             });
 
             var data = {{ tree_nodes|tojson }};
             $('#tree').treeview({
                 data: data,
-                levels: 2,
-                showTags: true
+                levels: 1,
+                showTags: true,
+                onNodeSelected: function (event, data) {
+                    $.ajax({
+                        type: "get",
+                        url: '/query/chart/' + data.id,
+                        success: function (data) {
+                            var options = [];
+                            $.each(data.xy_axis, function (index, obj) {
+                                var option = "<option value='" + obj + "'>" + obj + "</option>";
+                                options.push(option);
+                            });
+                            $('#xaxis').html(options);
+                            $('#yaxis').html(options);
+                            $('#xaxis').selectpicker('refresh');
+                            $('#yaxis').selectpicker('refresh');
+                            $('#xaxis').selectpicker('render');
+                            $('#yaxis').selectpicker('render');
+                            sql = data.chart_info.select_sql;
+                            if (data.chart_info.is_wrangling) {
+                                is_wrangling = "true";
+                            }
+                            id = data.chart_info.id;
+                            $('#chartTitle').val(data.chart_info.title);
+                            $('#chartSubTitle').val(data.chart_info.sub_title);
+                            $('#chartType').val(data.chart_info.chart_type);
+                            $('#xaxisName').val(data.chart_info.x_axis_name);
+                            $('#xaxis').val(data.chart_info.xaxis);
+                            $('#yaxisName').val(data.chart_info.y_axis_name);
+                            $('#yaxis').val(data.chart_info.yaxis.split(','));
+
+                            $('#xaxis').selectpicker('refresh');
+                            $('#yaxis').selectpicker('refresh');
+                            if (data.chart_info.is_data_zoom) {
+                                $('#isDataZoom').prop('checked', true);
+                            }
+                            if (data.chart_info.is_visualmap) {
+                                $('#isVisualMap').prop('checked', true);
+                            }
+                            if (data.chart_info.is_convert) {
+                                $('#isConvert').prop('checked', true);
+                            }
+                        }
+                    });
+                }
             });
         })
 
