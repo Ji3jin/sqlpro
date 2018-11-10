@@ -47,6 +47,9 @@ class DashBoardWithChart(db.Model, Serializable):
     id = db.Column(db.Integer, primary_key=True)
     dashboard_id = db.Column(db.Integer)
     chart_id = db.Column(db.Integer)
+    width = db.Column(db.Float)
+    height = db.Column(db.Float)
+    sort = db.Column(db.Integer)
     creator = db.Column(db.String(64), nullable=False)
     create_time = db.Column(db.DateTime, default=datetime.now)
 

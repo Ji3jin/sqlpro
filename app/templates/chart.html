@@ -4,6 +4,8 @@
     {{ super() }}
     <link rel="stylesheet"
           href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap-select/1.13.2/css/bootstrap-select.min.css">
+    <link rel="stylesheet" href="/static/css/jquery-ui.min.css">
+    <link rel="stylesheet" href="/static/css/lobipanel.min.css">
     <style>
         .loading {
             text-align: center;
@@ -135,7 +137,12 @@
                 <button type="button" id="saveChartBtn" class="btn btn-primary">Save
                 </button>
             </div>
-            <div id="chartCanvas" style="margin-top:65px;">
+            <div class="panel panel-default" style="margin-top:65px;">
+                <div class="panel-heading">
+                </div>
+                <div class="panel-body" id="chartCanvas">
+
+                </div>
             </div>
         </div>
     </div>
@@ -144,9 +151,26 @@
 {% block scripts %}
     {{ super() }}
     <script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap-select/1.13.2/js/bootstrap-select.min.js"></script>
+    <script src="/static/js/jquery-ui.min.js"></script>
+    <script src="/static/js/lobipanel.min.js"></script>
     <script>
         $(function () {
             $('#loadingDiv').hide();
+            $('.panel').lobiPanel({
+                reload: false,
+                close: false,
+                editTitle: false
+            });
+            var chart;
+            $('.lobipanel').on('onSmallSize.lobiPanel', function (ev, lobiPanel) {
+                chart.resize();
+            });
+            $('.lobipanel').on('onFullScreen.lobiPanel', function (ev, lobiPanel) {
+                chart.resize();
+            });
+            $('.lobipanel').on('onResize.lobiPanel', function (ev, lobiPanel) {
+                chart.resize();
+            });
             var xy_axis = {{ xy_axis|tojson }};
             var sql = "{{ sql|safe }}";
             var is_wrangling = "{{ is_wrangling|safe }}";
@@ -170,9 +194,9 @@
                     data: $("#chartForm").serialize(),
                     success: function (data) {
                         $('#chartCanvas').empty();
-                        var canvas = "<div id='echartcanvas'  style='margin-top:20px;width:100%;background-color: white;height: 600px;'></div>";
+                        var canvas = "<div id='echartcanvas'  style='margin-top:20px;width:100%;background-color: white;min-height: 600px;'></div>";
                         $('#chartCanvas').html(canvas);
-                        var chart = echarts.init($('#echartcanvas')[0], null, {renderer: 'canvas'});
+                        chart = echarts.init($('#echartcanvas')[0], null, {renderer: 'canvas'});
                         //data.custom_function
                         var chart_options = $.parseJSON(data.options);
                         chart.setOption(chart_options);
@@ -197,6 +221,8 @@
 
     </script>
     <script src="https://pyecharts.github.io/assets/js/echarts.min.js"></script>
+    <script src="https://pyecharts.github.io/assets/js/china.js"></script>
     <script src="https://pyecharts.github.io/assets/js/echarts-liquidfill.min.js"></script>
     <script src="https://pyecharts.github.io/assets/js/echarts-wordcloud.min.js"></script>
+
 {% endblock %}

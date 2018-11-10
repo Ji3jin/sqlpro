@@ -262,7 +262,6 @@
                     url: "/query/catalog",
                     data: $("#addCatalogFrom").serialize(),
                     success: function (data) {
-                        $("#tree").treeview("addNode", [data]);
                         $("#addCatalog").modal('hide');
                         $("#msgAlert").removeClass('alert-danger').addClass('alert-success');
                         var innerHTML = "<strong>Add Catalog Success!</strong>";
@@ -270,6 +269,7 @@
                         $("#msgAlert").fadeTo(2000, 500).slideUp(500, function () {
                             $("#msgAlert").hide();
                         });
+                        $("#tree").treeview("addNode", [data.data]);
                     },
                     error: function (jqXHR, textStatus, errorThrown) {
                         $("#msgAlert").removeClass('alert-success').addClass('alert-danger');
@@ -377,7 +377,7 @@
 
         });
         function loaddata(node, func) {
-            $('#loadingDiv').modal('show')
+            $('#loadingDiv').modal('show');
             $.getJSON("/query/treeview", {type: node.type, param: node.param}, function (json) {
                 func(json.data);
                 updateCompleteData();

@@ -4,6 +4,8 @@
     {{ super() }}
     <link rel="stylesheet"
           href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap-select/1.13.2/css/bootstrap-select.min.css">
+    <link rel="stylesheet" href="/static/css/jquery-ui.min.css">
+    <link rel="stylesheet" href="/static/css/lobipanel.min.css">
     <style>
         .bootstrap-select .dropdown-toggle {
             width: 85%;
@@ -30,6 +32,8 @@
                 <select class="selectpicker" name="charts" id="charts" data-live-search="true" multiple>
                 </select>
                 <button type="button" id="chartsAddBtn" class="btn btn-primary">Add Charts</button>
+                <button type="button" id="chartsSaveBtn" class="btn btn-primary">Save</button>
+                <button type="button" id="chartsShareBtn" class="btn btn-primary">Share</button>
             </div>
         </div>
         <div class="row">
@@ -39,7 +43,7 @@
             </div>
         </div>
     </div>
-    <div class="modal fade" id="addDashboard" tabindex="-1" role="dialog" aria-labelledby="addCatalogLabel"
+    <div class="modal fade" id="addDashboard" tabindex="-1" role="dialog" aria-labelledby="addDashboardLabel"
          aria-hidden="true">
         <div class="modal-dialog">
             <div class="modal-content">
@@ -70,19 +74,21 @@
             </div>
         </div>
     </div>
-
 {% endblock %}
 
 {% block scripts %}
     {{ super() }}
     <script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap-select/1.13.2/js/bootstrap-select.min.js"></script>
+    <script src="/static/js/jquery-ui.min.js"></script>
+    <script src="/static/js/lobipanel.min.js"></script>
     <script>
         $(function () {
+
             var dashboardlist = {{ dashboards|tojson }};
             var chartinfolist = {{ chart_infos|tojson }};
             var dashboard_options = [];
             $.each(dashboardlist, function (index, obj) {
-                var option = "<option value='" + obj + "'>" + obj + "</option>";
+                var option = "<option value='" + obj.id + "'>" + obj.name + "</option>";
                 dashboard_options.push(option);
             });
             $('#dashboard').html(dashboard_options);
@@ -100,6 +106,74 @@
             $('#charts').selectpicker('refresh');
             $('#charts').selectpicker('render');
 
+            function refreshDashboard(id) {
+                $.ajax({
+                    type: "get",
+                    url: "/query/dashboard/" + id,
+                    success: function (data) {
+                        $.each(data.data.charts, function (index, obj) {
+                            $("#dashboardCanvas").append('<div class="panel panel-default" chart-id="' + obj.id + '" style="width:' + obj.width + 'px;height:' + obj.height + 'px;float:left;margin:5px;"><div class="panel-heading"> </div><div class="panel-body">Loading...</div></div>');
+                            $(".panel-heading").hide();
+                            var chart;
+
+                            $('.panel').on('init.lobiPanel', function (ev, lobiPanel) {
+                                var panel = $(this);
+                                $.ajax({
+                                    type: "get",
+                                    url: '/query/chart/' + obj.id,
+                                    success: function (data) {
+                                        panel.children().eq(1).empty();
+                                        var canvas = "<div  style='margin-top:20px;width:100%;background-color: white;min-height: 200px;height:100%'></div>";
+                                        panel.children().eq(1).html(canvas);
+                                        chart = echarts.init(panel.children().eq(1).children().eq(0)[0], null, {renderer: 'canvas'});
+                                        var chart_options = $.parseJSON(data.options);
+                                        chart.setOption(chart_options);
+                                    }
+                                });
+                            });
+                            $('.panel').lobiPanel({
+                                reload: false,
+                                editTitle: false,
+                                sortable: true,
+                                width: 300,
+                                height: 300
+                            });
+                            $(".panel").mouseover(function (event) {
+                                $(this).find("div").first().show();
+                            });
+                            $(".panel").mouseout(function (event) {
+                                $(this).find("div").first().hide();
+                            });
+                            $('.lobipanel').on('beforePin.lobiPanel', function (ev, lobiPanel) {
+                                panelWidth = lobiPanel.getWidth();
+                                panelHeight = lobiPanel.getHeight();
+                            });
+                            $('.lobipanel').on('onPin.lobiPanel', function (ev, lobiPanel) {
+                                $(this).width(panelWidth);
+                                $(this).height(panelHeight);
+                                $(this).css("float", "left");
+                                $(this).css("margin", "5px");
+                            });
+                            $('.lobipanel').on('onSmallSize.lobiPanel', function (ev, lobiPanel) {
+                                chart.resize();
+                            });
+                            $('.lobipanel').on('onFullScreen.lobiPanel', function (ev, lobiPanel) {
+                                chart.resize();
+                            });
+                            $('.lobipanel').on('onResize.lobiPanel', function (ev, lobiPanel) {
+                                chart.resize();
+                            });
+                        });
+                    }
+                });
+            }
+
+            var id = $('#dashboard option:selected').val();
+            refreshDashboard(id);
+            $('#dashboard').on('changed.bs.select', function (e, clickedIndex, isSelected, previousValue) {
+                var name = $('#dashboard option:selected').val();
+                refreshDashboard(name);
+            });
             $("#dashboardAddBtn").click(function () {
                 $.ajax({
                     type: "post",
@@ -129,10 +203,10 @@
                 });
             });
             $("#dashboardDelBtn").click(function () {
-                var name = $('#dashboard option:selected').val();
+                var id = $('#dashboard option:selected').val();
                 $.ajax({
-                    type: "get",
-                    url: "/query/dashboard?dashboard=" + name,
+                    type: "delete",
+                    url: "/query/dashboard/" + id,
                     success: function (data) {
                         $('#dashboard option:selected').remove();
                         $('#dashboard').selectpicker('refresh');
@@ -154,17 +228,118 @@
                     }
                 });
             });
+
+            var panelWidth = 300;
+            var panelHeight = 300;
             $("#chartsAddBtn").click(function () {
                 var selected_charts = $('#charts').val();
-                $.each(selected_charts,function (index, obj) {
-                    $("#dashboardCanvas").append('<div style="width:200px;height:200px;border:1px solid #000;float:left">这是一个基本的面板</div>');
-                })
+                $.each(selected_charts, function (index, obj) {
+                    $("#dashboardCanvas").append('<div class="panel panel-default" chart-id="' + obj + '" style="width:300px;height:300px;float:left;margin:5px;"><div class="panel-heading"> </div><div class="panel-body">Loading...</div></div>');
+                    $(".panel-heading").hide();
+                    var chart;
+
+                    $('.panel').on('init.lobiPanel', function (ev, lobiPanel) {
+                        var panel = $(this);
+                        console.log("init panel")
+                        $.ajax({
+                            type: "get",
+                            url: '/query/chart/' + obj,
+                            success: function (data) {
+                                panel.children().eq(1).empty();
+                                var canvas = "<div  style='margin-top:20px;width:100%;background-color: white;min-height: 200px;height:100%'></div>";
+                                panel.children().eq(1).html(canvas);
+                                chart = echarts.init(panel.children().eq(1).children().eq(0)[0], null, {renderer: 'canvas'});
+                                var chart_options = $.parseJSON(data.options);
+                                chart.setOption(chart_options);
+                            }
+                        });
+                    });
+                    $('.panel').lobiPanel({
+                        reload: false,
+                        editTitle: false,
+                        sortable: true,
+                        width: 300,
+                        height: 300
+                    });
+                    $(".panel").mouseover(function (event) {
+                        $(this).find("div").first().show();
+                    });
+                    $(".panel").mouseout(function (event) {
+                        $(this).find("div").first().hide();
+                    });
+                    $('.lobipanel').on('beforePin.lobiPanel', function (ev, lobiPanel) {
+                        panelWidth = lobiPanel.getWidth();
+                        panelHeight = lobiPanel.getHeight();
+                    });
+                    $('.lobipanel').on('onPin.lobiPanel', function (ev, lobiPanel) {
+                        $(this).width(panelWidth);
+                        $(this).height(panelHeight);
+                        $(this).css("float", "left");
+                        $(this).css("margin", "5px");
+                    });
+                    $('.lobipanel').on('onSmallSize.lobiPanel', function (ev, lobiPanel) {
+                        chart.resize();
+                    });
+                    $('.lobipanel').on('onFullScreen.lobiPanel', function (ev, lobiPanel) {
+                        chart.resize();
+                    });
+                    $('.lobipanel').on('onResize.lobiPanel', function (ev, lobiPanel) {
+                        chart.resize();
+                    });
+                });
+                $('#charts').selectpicker('deselectAll');
+
+                $('#charts').selectpicker('refresh');
+            });
+
+            $("#chartsSaveBtn").click(function () {
+                var selected_dashboard = $('#dashboard').val();
+                var charts_data = [];
+                $(".panel").each(function (index, element) {
+                    var info = {
+                        'chart_id': $(this).attr("chart-id"),
+                        'width': $(this).width(),
+                        'height': $(this).height(),
+                        'sort': index
+                    };
+                    console.log(info)
+                    charts_data.push(info);
+
+                });
+                console.log(charts_data)
+                $.ajax({
+                    type: "post",
+                    url: "/query/dashboard/" + selected_dashboard,
+                    data: {'charts': JSON.stringify(charts_data)},
+                    success: function (data) {
+                        $("#msgAlert").removeClass('alert-danger').addClass('alert-success');
+                        var innerHTML = "<strong>Add DashBoard Success!</strong>";
+                        $("#msgAlert")[0].innerHTML = innerHTML;
+                        $("#msgAlert").fadeTo(2000, 500).slideUp(500, function () {
+                            $("#msgAlert").hide();
+                        });
+                    },
+                    error: function (jqXHR, textStatus, errorThrown) {
+                        $("#msgAlert").removeClass('alert-success').addClass('alert-danger');
+                        var innerHTML = "<strong>Add DashBoard  Failed!</strong>";
+                        $("#msgAlert")[0].innerHTML = innerHTML;
+                        $("#msgAlert").fadeTo(2000, 500).slideUp(500, function () {
+                            $("#msgAlert").hide();
+                        });
+                    }
+                });
+            });
+
+            $("#chartsShareBtn").click(function () {
+                var id = $('#dashboard option:selected').val();
+                window.location.href = '/share/dashboard/' + id;
             });
         })
 
 
     </script>
     <script src="https://pyecharts.github.io/assets/js/echarts.min.js"></script>
+    <script src="https://pyecharts.github.io/assets/js/china.js"></script>
     <script src="https://pyecharts.github.io/assets/js/echarts-liquidfill.min.js"></script>
     <script src="https://pyecharts.github.io/assets/js/echarts-wordcloud.min.js"></script>
 {% endblock %}

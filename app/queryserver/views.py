@@ -4,7 +4,7 @@
 # Author: jixin
 # Date  : 18-10-17
 
-from app import db
+from app import db, app_config
 from .models import DashBoard, ChartInfo, Catalog, SavedSql, DashBoardWithChart
 from . import query
 from ..core import baseapi
@@ -15,7 +15,7 @@ from .chartview import ChartView
 from ..wrangling.wloperation import WlOperation, get_recommend_operation
 from ..wrangling.wranglingdf import WrangLingDF
 from flask_login import login_required, current_user
-import json
+import json, requests
 from operator import itemgetter
 from itertools import groupby
 from pyecharts_javascripthon.api import TRANSLATOR
@@ -72,6 +72,13 @@ def add_catalog():
     property_names = request.form.getlist('name[]')
     property_values = request.form.getlist('value[]')
     properties = {property_names[i]: property_values[i] for i in range(len(property_names))}
+    post_data = {"catalogName": catalog_name, "connectorName": connector_name, "creator": current_user.username,
+                 "properties": properties}
+    headers = {'Content-Type': 'application/json'}
+    r = requests.post("{0}/v1/catalog".format(app_config['PRESTO_HTTP_URI']), headers=headers,
+                      data=json.dumps(post_data))
+    if r.status_code != 200:
+        return baseapi.exception("add catalog error")
     catalog = Catalog(name=catalog_name, connector=connector_name, public=True if is_public == 'on' else False,
                       creator=current_user.username, properties=json.dumps(properties))
     db.session.add(catalog)
@@ -87,10 +94,15 @@ def delete_catalog():
     selected = request.form['ids']
     for id in selected.split(','):
         catalog = Catalog.query.get(int(id))
+        del_data = {"catalogName": catalog.name, "connectorName": catalog.connector, "creator": catalog.creator,
+                    "properties": json.loads(catalog.properties)}
         db.session.delete(catalog)
         db.session.commit()
-
-        # delete from presto
+        headers = {'Content-Type': 'application/json'}
+        r = requests.delete("{0}/v1/catalog".format(app_config['PRESTO_HTTP_URI']), headers=headers,
+                            data=json.dumps(del_data))
+        if r.status_code != 200:
+            return baseapi.exception("del catalog error")
     return baseapi.success("ok")
 
 
@@ -143,6 +155,7 @@ def query_result():
 
 
 @query.route('/query/chart', methods=['POST', 'GET'])
+@login_required
 def query_chart():
     if request.method == 'GET':
         sql = request.args.get('sql')
@@ -181,14 +194,16 @@ def query_chart():
         for item in yaxis:
             chart_view.add(item, data[xaxis].tolist(), data[item].tolist(), xaxis_name=x_axis_name,
                            yaxis_name=y_axis_name, is_datazoom_show=data_zoom, is_visualmap=visual_map,
-                           xaxis_name_pos='end', yaxis_name_pos='end', yaxis_name_gap=40, is_convert=is_convert)
-        javascript_snippet = TRANSLATOR.translate(chart_view.options)
-        return baseapi.success(data='true',
-                               custom_function=javascript_snippet.function_snippet,
-                               options=javascript_snippet.option_snippet, )
+                           xaxis_name_pos='end', yaxis_name_pos='end', yaxis_name_gap=40, is_convert=is_convert,
+                           maptype='china', geo_normal_color="#E5E7E9", geo_emphasis_color="#CACFD2")
+    javascript_snippet = TRANSLATOR.translate(chart_view.options)
+    return baseapi.success(data='true',
+                           custom_function=javascript_snippet.function_snippet,
+                           options=javascript_snippet.option_snippet, )
 
 
 @query.route('/query/chart/save', methods=['POST'])
+@login_required
 def add_chart():
     sql = request.args.get('sql')
     is_wrangling = request.args.get('is_wrangling') == 'true'
@@ -225,6 +240,7 @@ def add_chart():
 
 
 @query.route('/query/wrangling', methods=['POST', 'GET'])
+@login_required
 def data_wrangling():
     sql = request.args.get('sql')
     page_index = int(request.form.get('index', '1'))
@@ -248,6 +264,7 @@ def data_wrangling():
 
 
 @query.route('/query/operation', methods=['POST'])
+@login_required
 def get_operation():
     sql = request.form.get('sql', '')
     page_index = int(request.form.get('index', '1'))
@@ -299,6 +316,7 @@ def query_operation():
 
 
 @query.route('/query/extract', methods=['DELETE'])
+@login_required
 def undo_operation():
     data = request.get_json()
     sql = data.get('sql', '')
@@ -320,6 +338,7 @@ def undo_operation():
 
 
 @query.route('/query/dashboard', methods=['POST'])
+@login_required
 def add_dashboard():
     name = request.form.get('dashboardName')
     desc = request.form.get('dashboardDesc')
@@ -331,16 +350,17 @@ def add_dashboard():
     return baseapi.success(name)
 
 
-@query.route('/query/dashboard', methods=['GET'])
-def delete_dashboard():
-    name = request.args.get('dashboard')
-    dashboard = DashBoard.query.filter_by(name=name).first()
+@query.route('/query/dashboard/<int:id>', methods=['DELETE'])
+@login_required
+def delete_dashboard(id):
+    dashboard = DashBoard.query.get(id)
     db.session.delete(dashboard)
     db.session.commit()
     return baseapi.success("true")
 
 
 @query.route('/query/dashboard/list', methods=['GET'])
+@login_required
 def get_dashboard_list():
     dashboards = DashBoard.query.filter(
         (DashBoard.creator == current_user.username) | (DashBoard.is_public == True)).all()
@@ -348,17 +368,57 @@ def get_dashboard_list():
     select_nodes = [{"tag": tag, "nodes": [
         {"id": item.id, "text": item.title, "chart_type": item.chart_type} for item
         in items]} for tag, items in groupby(chart_infos, key=lambda m: m.tag)]
-    return render_template('dashboard.html', dashboards=[item.name for item in dashboards], chart_infos=select_nodes)
+    return render_template('dashboard.html', dashboards=[{"name": item.name, "id": item.id} for item in dashboards],
+                           chart_infos=select_nodes)
 
 
-@query.route('/query/dashboard/<int:id>', methods=['GET'])
-def get_dashboard(id):
+@query.route('/share/dashboard/<int:id>', methods=['GET'])
+def share_dashboard(id):
     dashboard = DashBoard.query.get(id)
-    charts = ChartInfo.query.filter_by(dashboard_id=id).all()
-    return baseapi.success({'databoard': dashboard.serialize(), 'charts': [item.serialize() for item in charts]})
+    charts = DashBoardWithChart.query.filter_by(dashboard_id=id).order_by(DashBoardWithChart.sort)
+    return render_template('share.html', name=dashboard.name, id=dashboard.id,
+                           charts=[{"id": item.chart_id, "width": item.width, "height": item.height} for item in
+                                   charts])
+
+
+@query.route('/share/chart/<int:id>', methods=['GET'])
+def share_chart(id):
+    chart = ChartInfo.query.get(id)
+    data = query_engine.query_all(chart.select_sql)
+    chart_view = ChartView.create_instance("pyecharts", chart.chart_type, title=chart.title)
+    for item in chart.yaxis.split(','):
+        chart_view.add(item, data[chart.xaxis].tolist(), data[item].tolist(), xaxis_name=chart.x_axis_name,
+                       yaxis_name=chart.y_axis_name, is_datazoom_show=chart.is_data_zoom,
+                       is_visualmap=chart.is_visual_map,
+                       xaxis_name_pos='end', yaxis_name_pos='end', yaxis_name_gap=40, is_convert=chart.is_convert)
+    javascript_snippet = TRANSLATOR.translate(chart_view.options)
+    return baseapi.success(data="true", xy_axis=data.columns.values.tolist(),
+                           custom_function=javascript_snippet.function_snippet,
+                           options=javascript_snippet.option_snippet, chart_info=chart.serialize())
+
+
+@query.route('/query/dashboard/<int:id>', methods=['GET', 'POST'])
+@login_required
+def get_dashboard(id):
+    if request.method == 'GET':
+        dashboard = DashBoard.query.get(id)
+        charts = DashBoardWithChart.query.filter_by(dashboard_id=id).order_by(DashBoardWithChart.sort)
+        return baseapi.success({'databoard': dashboard.name,
+                                'charts': [{"id": item.chart_id, "width": item.width, "height": item.height} for item in
+                                           charts]})
+    elif request.method == 'POST':
+        charts = json.loads(request.form.get('charts'))
+        for chart in charts:
+            d_chart = DashBoardWithChart(dashboard_id=id, chart_id=int(chart['chart_id']), width=float(chart['width']),
+                                         height=float(chart['height']), sort=int(chart['sort']),
+                                         creator=current_user.username)
+            db.session.add(d_chart)
+        db.session.commit()
+        return baseapi.success("true")
 
 
 @query.route('/query/chart/list', methods=['GET'])
+@login_required
 def get_chart_list():
     chart_infos = ChartInfo.query.filter(ChartInfo.creator == current_user.username).order_by(ChartInfo.tag)
     tree_nodes = [{"text": tag, "nodes": [
@@ -369,6 +429,7 @@ def get_chart_list():
 
 
 @query.route('/query/chart/<int:id>', methods=['GET', 'POST'])
+@login_required
 def edit_chart(id):
     if request.method == 'GET':
         chart = ChartInfo.query.get(id)
@@ -403,6 +464,7 @@ def edit_chart(id):
 
 
 @query.route('/query/chart', methods=['DELETE'])
+@login_required
 def delete_chart():
     selected = request.form['ids']
     for id in selected.split(','):

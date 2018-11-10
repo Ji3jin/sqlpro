@@ -24,6 +24,8 @@ db.init_app(app)
 login_manager.init_app(app)
 bootstrap = Bootstrap(app)
 
+app_config = app.config
+
 
 def make_celery(app):
     celery = Celery(app.import_name, broker=app.config['CELERY_BROKER_URL'],
