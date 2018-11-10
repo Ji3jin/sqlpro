@@ -439,7 +439,8 @@ def edit_chart(id):
             chart_view.add(item, data[chart.xaxis].tolist(), data[item].tolist(), xaxis_name=chart.x_axis_name,
                            yaxis_name=chart.y_axis_name, is_datazoom_show=chart.is_data_zoom,
                            is_visualmap=chart.is_visual_map,
-                           xaxis_name_pos='end', yaxis_name_pos='end', yaxis_name_gap=40, is_convert=chart.is_convert)
+                           xaxis_name_pos='end', yaxis_name_pos='end', yaxis_name_gap=40, is_convert=chart.is_convert,
+                           maptype='china', geo_normal_color="#E5E7E9", geo_emphasis_color="#CACFD2")
         javascript_snippet = TRANSLATOR.translate(chart_view.options)
         return baseapi.success(data="true", xy_axis=data.columns.values.tolist(),
                                custom_function=javascript_snippet.function_snippet,

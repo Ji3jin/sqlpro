@@ -40,7 +40,7 @@
             function refreshDashboard(id, charts) {
                 console.log(charts)
                 $.each(charts, function (index, obj) {
-                    $("#dashboardCanvas").append('<div class="panel panel-default" chart-id="' + obj.id + '" style="width:' + obj.width + 'px;height:' + obj.height + 'px;float:left;margin:5px;"><div class="panel-heading"> </div><div class="panel-body">Loading...</div></div>');
+                    $("#dashboardCanvas").append('<div class="panel panel-default" chart-id="' + obj.id + '" style="width:' + obj.width + 'px;height:' + obj.height + 'px;float:left;margin:5px;"><div class="panel-heading"> </div><div class="panel-body" style="width:' + obj.width + 'px;height:' + obj.height + 'px;">Loading...</div></div>');
                     $(".panel-heading").hide();
                     var chart;
 
@@ -51,7 +51,7 @@
                             url: '/share/chart/' + obj.id,
                             success: function (data) {
                                 panel.children().eq(1).empty();
-                                var canvas = "<div  style='margin-top:20px;width:100%;background-color: white;min-height: 200px;height:100%'></div>";
+                                var canvas = "<div  style='margin-top:20px;width:100%;background-color: white;height:100%'></div>";
                                 panel.children().eq(1).html(canvas);
                                 chart = echarts.init(panel.children().eq(1).children().eq(0)[0], null, {renderer: 'canvas'});
                                 var chart_options = $.parseJSON(data.options);

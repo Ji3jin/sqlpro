@@ -107,6 +107,7 @@
             $('#charts').selectpicker('render');
 
             function refreshDashboard(id) {
+                $("#dashboardCanvas").empty();
                 $.ajax({
                     type: "get",
                     url: "/query/dashboard/" + id,
