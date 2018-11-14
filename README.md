@@ -22,3 +22,5 @@ Demo
 ![chart list](demo/chartlist.png)
 
 ![dashboard](demo/dashboard.png)
+
+[https://github.com/Ji3jin/sqlpro](https://github.com/Ji3jin/sqlpro)
