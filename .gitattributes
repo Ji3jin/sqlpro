@@ -1,5 +1,5 @@
 static/*
 templates/*
-.html
-.js
-.css
+*.html
+*.js
+*.css
