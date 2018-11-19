@@ -1,5 +1,5 @@
-static/*
-templates/*
+static/* linguist-vendored
+templates/* linguist-vendored
 *.html
 *.js
 *.css
