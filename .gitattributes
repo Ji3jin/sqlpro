@@ -1,5 +1,5 @@
-static/* linguist-vendored
-templates/* linguist-vendored
-*.html
-*.js
-*.css
+static/* linguist-vendored=true
+templates/* linguist-vendored=true
+*.html  linguist-vendored=true
+*.js  linguist-vendored=true
+*.css  linguist-vendored=true
